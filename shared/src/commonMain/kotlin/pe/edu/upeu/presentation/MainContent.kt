@@ -56,8 +56,10 @@ fun MainContent(onLogout: () -> Unit) {
             color = MaterialTheme.colorScheme.background
         ) {
             when (currentRoute) {
+                is PosRoute.Dashboard -> DashboardContent()
                 is PosRoute.POS -> PosContent()
-                else -> Box(Modifier.fillMaxSize()) { Text("Pantalla ${currentRoute.title} (En construcción)") }
+                is PosRoute.Ordenes -> OrdenesContent()
+                is PosRoute.Caja -> CajaContent()
             }
         }
     }
