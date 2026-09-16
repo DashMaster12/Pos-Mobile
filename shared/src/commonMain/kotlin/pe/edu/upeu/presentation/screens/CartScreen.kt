@@ -1,19 +1,20 @@
 package pe.edu.upeu.presentation.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pe.edu.upeu.presentation.CartItem
@@ -22,6 +23,7 @@ import pe.edu.upeu.presentation.components.DeliveryButton
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
+    isLoggedIn: Boolean = true,
     cartItems: List<CartItem>,
     onUpdateQuantity: (CartItem, Int) -> Unit,
     onRemoveItem: (CartItem) -> Unit,
@@ -30,7 +32,8 @@ fun CartScreen(
     onSelectAddress: (String) -> Unit,
     onAddNewAddress: (String) -> Unit,
     onBackClick: () -> Unit,
-    onConfirmOrder: () -> Unit
+    onConfirmOrder: () -> Unit,
+    onGoToLogin: () -> Unit
 ) {
     var newAddressInput by remember { mutableStateOf("") }
     val totalPrice = cartItems.sumOf { it.product.price * it.quantity }
@@ -38,20 +41,31 @@ fun CartScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Carrito de Compras", style = MaterialTheme.typography.titleLarge) },
+                title = { 
+                    Text(
+                        "Carrito de Compras", 
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Regresar")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack, 
+                            contentDescription = "Regresar", 
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
         bottomBar = {
-            if (cartItems.isNotEmpty()) {
+            if (isLoggedIn && cartItems.isNotEmpty()) {
                 Surface(
                     tonalElevation = 8.dp,
                     color = MaterialTheme.colorScheme.surface,
@@ -80,7 +94,47 @@ fun CartScreen(
             }
         }
     ) { paddingValues ->
-        if (cartItems.isEmpty()) {
+        if (!isLoggedIn) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Inicia sesión para ver tu carrito",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Necesitas estar logueado para gestionar tus productos y proceder al pago.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    DeliveryButton(
+                        text = "Iniciar Sesión",
+                        onClick = onGoToLogin,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        } else if (cartItems.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

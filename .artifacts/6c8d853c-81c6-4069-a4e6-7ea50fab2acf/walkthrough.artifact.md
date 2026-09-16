@@ -1,22 +1,21 @@
-# Walkthrough - Pantalla Completa de Carrito con Selector de Dirección
+# Walkthrough - Control Global de Sesión y Restricciones de Vistas
 
-He completado la transformación del carrito de compras en una **pantalla completa dedicada** con selector de dirección de envío integrado en Jetpack Compose.
+He implementado con éxito la lógica de control de sesión simulada en toda la aplicación, restringiendo y gestionando de forma inteligente las funcionalidades interactivas cuando el usuario es invitado (`isLoggedIn == false`).
 
 ## Cambios Realizados
 
-### 1. Pantalla Completa de Carrito (`CartScreen.kt`)
-- **Vista Dedicada**: Se eliminó el panel flotante (`ModalBottomSheet`) y se creó `CartScreen` como una pantalla completa con su propia `TopAppBar`, botón de regreso y barra inferior fija de pago.
-- **Listado Detallado**: Muestra los productos agregados, cantidad actual, precio unitario y cálculo de subtotal por producto, con controles interactivos (`+` / `-` / eliminar).
+### 1. Estado Global de Sesión (`CustomerMainContent.kt`)
+- Se elevó el estado booleano de sesión `isLoggedIn` (iniciando por defecto en `true`) a nivel del contenedor principal de la aplicación, compartiéndolo de manera unificada entre todas las pestañas y el carrito.
 
-### 2. Selector de Dirección de Envío Integrado
-- **Dirección de Entrega**: Sección dedicada dentro de la misma pantalla de carrito donde el usuario puede visualizar la dirección seleccionada, elegir entre las direcciones guardadas previamente mediante botones de radio (`RadioButton`), o añadir de forma rápida una nueva dirección mediante un campo de texto y un botón de adición.
+### 2. Restricciones en Tienda y Carrito
+- **Tienda (`TiendaScreen.kt`)**: Si el usuario está como invitado (`isLoggedIn == false`), al intentar presionar *"Agregar"* en cualquier tarjeta de producto, la aplicación intercepta la acción y muestra un **diálogo de alerta** (*"Inicio de sesión requerido"*) invitándolo a iniciar sesión.
+- **Carrito de Compras (`CartScreen.kt`)**: Si el usuario entra al carrito sin sesión activa, se muestra una vista ilustrativa de invitado con un botón de **"Iniciar Sesión"** que lo redirige a su perfil, deshabilitando el flujo de pago.
 
-### 3. Confirmación de Pedido y Redirección
-- **Botón "Confirmar Pedido"**: Al presionar el botón inferior fijo:
-  1. Se calcula el total general.
-  2. Se genera un nuevo pedido en la lista global incluyendo los detalles y la dirección de envío seleccionada.
-  3. Se limpia automáticamente el carrito.
-  4. Se redirige al usuario a la pestaña **"Mis Pedidos"** para que visualice su orden en curso con estado *"En preparación 🛵"*.
+### 3. Restricción en Mis Pedidos (`MisPedidosScreen.kt`)
+- Si el usuario cierra sesión, la pestaña **"Mis Pedidos"** oculta el historial de órdenes anteriores y muestra un estado vacío amigable con el mensaje *"Inicia sesión para ver tu historial de pedidos"* y un botón directo para iniciar sesión.
+
+### 4. Sincronización en Perfil de Usuario (`UsuarioScreen.kt`)
+- Sincronizado de forma bidireccional con el estado global: al pulsar *"Cerrar Sesión"* se actualiza la sesión a `false`, y al pulsar *"Iniciar Sesión"* se reactiva de manera interactiva.
 
 ---
 

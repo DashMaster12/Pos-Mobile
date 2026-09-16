@@ -21,10 +21,11 @@ import androidx.compose.ui.unit.sp
 import pe.edu.upeu.presentation.components.DeliveryButton
 
 @Composable
-fun UsuarioScreen(onLogout: () -> Unit = {}) {
-    // Estado de sesión simulado (por defecto true)
-    var isLoggedIn by remember { mutableStateOf(true) }
-
+fun UsuarioScreen(
+    isLoggedInExternal: Boolean = true,
+    onSessionStateChanged: (Boolean) -> Unit = {},
+    onLogout: () -> Unit = {}
+) {
     // Estados locales para direcciones y métodos de pago
     val addresses = remember { mutableStateListOf("Av. Principal 123, Lima", "Calle Los Pinos 456, Miraflores") }
     var newAddressInput by remember { mutableStateOf("") }
@@ -36,7 +37,7 @@ fun UsuarioScreen(onLogout: () -> Unit = {}) {
     var showEditDialog by remember { mutableStateOf(false) }
     var editDialogTitle by remember { mutableStateOf("") }
 
-    if (!isLoggedIn) {
+    if (!isLoggedInExternal) {
         // Vista de usuario no logueado
         Box(
             modifier = Modifier
@@ -70,7 +71,7 @@ fun UsuarioScreen(onLogout: () -> Unit = {}) {
                 Spacer(modifier = Modifier.height(24.dp))
                 DeliveryButton(
                     text = "Iniciar Sesión",
-                    onClick = { isLoggedIn = true },
+                    onClick = { onSessionStateChanged(true) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -280,7 +281,7 @@ fun UsuarioScreen(onLogout: () -> Unit = {}) {
                 DeliveryButton(
                     text = "Cerrar Sesión",
                     onClick = {
-                        isLoggedIn = false
+                        onSessionStateChanged(false)
                         onLogout()
                     },
                     containerColor = MaterialTheme.colorScheme.error,

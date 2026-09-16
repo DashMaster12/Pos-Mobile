@@ -11,12 +11,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import pe.edu.upeu.presentation.theme.PrimaryOrange
-import pe.edu.upeu.presentation.theme.OnPrimaryLight
+import pe.edu.upeu.presentation.theme.AleBluePrimary
 
 /**
- * Botón corporativo reutilizable para la app de delivery.
- * Incluye esquinas redondeadas, sombra sutil, soporte para icono y estado de carga (loading).
+ * Botón corporativo reutilizable para la app de Alé Burgers con diseño plano y sólido.
  */
 @Composable
 fun DeliveryButton(
@@ -26,8 +24,8 @@ fun DeliveryButton(
     enabled: Boolean = true,
     isLoading: Boolean = false,
     icon: ImageVector? = null,
-    containerColor: Color = PrimaryOrange,
-    contentColor: Color = OnPrimaryLight
+    containerColor: Color = AleBluePrimary,
+    contentColor: Color = Color.White
 ) {
     Button(
         onClick = onClick,
@@ -36,20 +34,20 @@ fun DeliveryButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.6f),
-            disabledContentColor = contentColor.copy(alpha = 0.6f)
+            disabledContainerColor = containerColor.copy(alpha = 0.5f),
+            disabledContentColor = contentColor.copy(alpha = 0.5f)
         ),
         elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 4.dp,
-            pressedElevation = 8.dp,
+            defaultElevation = 2.dp,
+            pressedElevation = 4.dp,
             disabledElevation = 0.dp
         ),
         modifier = modifier
             .height(52.dp)
             .shadow(
-                elevation = 6.dp,
+                elevation = 4.dp,
                 shape = RoundedCornerShape(14.dp),
-                spotColor = containerColor.copy(alpha = 0.4f)
+                spotColor = containerColor.copy(alpha = 0.3f)
             )
     ) {
         if (isLoading) {
@@ -67,7 +65,8 @@ fun DeliveryButton(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = contentColor
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
@@ -75,7 +74,8 @@ fun DeliveryButton(
                     text = text,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.5.sp,
+                    color = contentColor
                 )
             }
         }

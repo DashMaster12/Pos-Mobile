@@ -1,14 +1,14 @@
-# Tareas - Pantalla Completa de Carrito con Selector de Dirección
+# Tareas - Control Global de Sesión y Restricciones de Vistas
 
-- [x] **Fase 1: Creación de CartScreen.kt**
-  - [x] Diseñar pantalla completa de carrito con listado de productos, cantidades, subtotales
-  - [x] Implementar sección de selección de dirección de envío y adición de nueva dirección
-  - [x] Añadir botón inferior fijo para confirmar el pedido
+- [x] **Fase 1: Elevación de Estado de Sesión en CustomerMainContent**
+  - [x] Declarar `isLoggedIn` compartido en `CustomerMainContent.kt`
+  - [x] Añadir diálogo de aviso cuando el usuario invitado intenta realizar acciones protegidas
 
-- [x] **Fase 2: Integración en CustomerMainContent.kt**
-  - [x] Reemplazar ModalBottomSheet por navegación a `CartScreen`
-  - [x] Conectar la acción de confirmar pedido con la creación del pedido en `MisPedidos` y limpieza de carrito
-  - [x] Asegurar retorno correcto a la tienda o redirección a Mis Pedidos
+- [x] **Fase 2: Actualización de Pantallas con Validaciones de Sesión**
+  - [x] Actualizar `TiendaScreen.kt` para validar `isLoggedIn` al agregar al carrito
+  - [x] Actualizar `CartScreen.kt` para mostrar estado de invitado si `isLoggedIn == false`
+  - [x] Actualizar `MisPedidosScreen.kt` para mostrar mensaje de inicio de sesión si `isLoggedIn == false`
+  - [x] Sincronizar `UsuarioScreen.kt` con el estado global de sesión
 
 - [x] **Fase 3: Verificación**
   - [x] Ejecutar `gradle_build` (`assembleDebug`) para validar compilación exitosa (Build finished successfully)

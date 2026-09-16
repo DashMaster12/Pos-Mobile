@@ -28,7 +28,11 @@ data class ProductItem(
 )
 
 @Composable
-fun TiendaScreen(onAddToCart: (ProductItem) -> Unit = {}) {
+fun TiendaScreen(
+    isLoggedIn: Boolean = true,
+    onAddToCart: (ProductItem) -> Unit = {},
+    onLoginRequired: () -> Unit = {}
+) {
     val sampleProducts = listOf(
         ProductItem("1", "Hamburguesa Deluxe", "Doble carne, queso cheddar y tocino crujiente", 25.0, "$25.00"),
         ProductItem("2", "Pizza Pepperoni", "Muzzarella fundida y rodajas de pepperoni artesanal", 45.0, "$45.00"),
@@ -126,7 +130,13 @@ fun TiendaScreen(onAddToCart: (ProductItem) -> Unit = {}) {
 
                         DeliveryButton(
                             text = "Agregar",
-                            onClick = { onAddToCart(product) },
+                            onClick = {
+                                if (isLoggedIn) {
+                                    onAddToCart(product)
+                                } else {
+                                    onLoginRequired()
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth().height(38.dp)
                         )
                     }
