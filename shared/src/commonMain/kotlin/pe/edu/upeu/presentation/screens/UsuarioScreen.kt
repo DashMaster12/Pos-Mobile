@@ -4,9 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
@@ -18,27 +18,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pe.edu.upeu.data.model.ClienteResponse
 import pe.edu.upeu.presentation.components.DeliveryButton
 
 @Composable
 fun UsuarioScreen(
-    isLoggedInExternal: Boolean = true,
+    isLoggedInExternal: Boolean = false,
+    cliente: ClienteResponse? = null,
+    addresses: MutableList<String> = mutableStateListOf(),
     onSessionStateChanged: (Boolean) -> Unit = {},
+    onRegisterClick: () -> Unit = {},
+    onUpdateAddress: (String) -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
-    // Estados locales para direcciones y métodos de pago
-    val addresses = remember { mutableStateListOf("Av. Principal 123, Lima", "Calle Los Pinos 456, Miraflores") }
     var newAddressInput by remember { mutableStateOf("") }
-
-    val paymentMethods = remember { mutableStateListOf("Visa •••• 4242", "Yape / Plin •••• 9876") }
-    var newPaymentInput by remember { mutableStateOf("") }
 
     // Diálogo de prueba para edición
     var showEditDialog by remember { mutableStateOf(false) }
     var editDialogTitle by remember { mutableStateOf("") }
 
     if (!isLoggedInExternal) {
-        // Vista de usuario no logueado
+        // Vista de usuario no logueado / Invitado
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -57,13 +57,13 @@ fun UsuarioScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "No has iniciado sesión",
+                    text = "Bienvenido a Alé Burgers",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Inicia sesión para gestionar tus pedidos, direcciones y métodos de pago.",
+                    text = "Inicia sesión o regístrate para gestionar tus pedidos y direcciones.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -74,6 +74,14 @@ fun UsuarioScreen(
                     onClick = { onSessionStateChanged(true) },
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onRegisterClick,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Crear Cuenta nueva", fontWeight = FontWeight.Bold)
+                }
             }
         }
     } else {
@@ -114,22 +122,25 @@ fun UsuarioScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Carlos Mendoza",
+                                text = cliente?.nombreCompleto ?: "Cliente Alé Burgers",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "carlos.mendoza@gmail.com",
+                                text = cliente?.correo ?: "cliente@aleburgers.com",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "+51 987 654 321",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (!cliente?.numeroDocumento.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Doc: ${cliente?.tipoDocumento ?: "DNI"}: ${cliente?.numeroDocumento}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         IconButton(onClick = {
                             editDialogTitle = "Editar Datos Personales"
@@ -141,7 +152,7 @@ fun UsuarioScreen(
                 }
             }
 
-            // Sección: Gestionar Direcciones
+            // Sección: Gestionar Direcciones (Dinámica)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -158,20 +169,24 @@ fun UsuarioScreen(
                         }
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        addresses.forEach { addr ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "• $addr", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                TextButton(onClick = {
-                                    editDialogTitle = "Editar Dirección: $addr"
-                                    showEditDialog = true
-                                }) {
-                                    Text("Editar", fontSize = 12.sp)
+                        if (addresses.isEmpty()) {
+                            Text(text = "No hay direcciones registradas.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            addresses.forEach { addr ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "• $addr", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    TextButton(onClick = {
+                                        editDialogTitle = "Editar Dirección: $addr"
+                                        showEditDialog = true
+                                    }) {
+                                        Text("Editar", fontSize = 12.sp)
+                                    }
                                 }
                             }
                         }
@@ -184,7 +199,7 @@ fun UsuarioScreen(
                             OutlinedTextField(
                                 value = newAddressInput,
                                 onValueChange = { newAddressInput = it },
-                                placeholder = { Text("Nueva dirección...") },
+                                placeholder = { Text("Nueva dirección de entrega...") },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(52.dp),
@@ -195,11 +210,12 @@ fun UsuarioScreen(
                                 onClick = {
                                     if (newAddressInput.isNotBlank()) {
                                         addresses.add(newAddressInput)
+                                        onUpdateAddress(newAddressInput)
                                         newAddressInput = ""
                                     }
                                 },
                                 modifier = Modifier.height(52.dp),
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = "Agregar")
                             }
@@ -208,72 +224,7 @@ fun UsuarioScreen(
                 }
             }
 
-            // Sección: Métodos de Pago
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Métodos de Pago", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        paymentMethods.forEach { method ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "• $method", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                TextButton(onClick = {
-                                    editDialogTitle = "Gestionar Método: $method"
-                                    showEditDialog = true
-                                }) {
-                                    Text("Gestionar", fontSize = 12.sp)
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = newPaymentInput,
-                                onValueChange = { newPaymentInput = it },
-                                placeholder = { Text("Nuevo método (ej. Tarjeta/Yape)...") },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp),
-                                singleLine = true
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    if (newPaymentInput.isNotBlank()) {
-                                        paymentMethods.add(newPaymentInput)
-                                        newPaymentInput = ""
-                                    }
-                                },
-                                modifier = Modifier.height(52.dp),
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Agregar")
-                            }
-                        }
-                    }
-                }
-            }
+            // Nota: Métodos de pago eliminados para usar pasarela Izipay por seguridad.
 
             // Botón de Cerrar Sesión
             item {

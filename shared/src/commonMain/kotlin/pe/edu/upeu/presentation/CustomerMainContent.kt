@@ -9,65 +9,49 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import pe.edu.upeu.data.model.ClienteResponse
+import pe.edu.upeu.data.model.ProductDto
 import pe.edu.upeu.presentation.screens.CartScreen
 import pe.edu.upeu.presentation.screens.ConfiguracionScreen
 import pe.edu.upeu.presentation.screens.MisPedidosScreen
-import pe.edu.upeu.presentation.screens.OrderModel
-import pe.edu.upeu.presentation.screens.ProductItem
 import pe.edu.upeu.presentation.screens.TiendaScreen
 import pe.edu.upeu.presentation.screens.UsuarioScreen
+import pe.edu.upeu.presentation.viewmodel.AppViewModel
 
 data class CartItem(
-    val product: ProductItem,
+    val product: ProductDto,
     var quantity: Int
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerMainContent(onLogout: () -> Unit) {
+    val viewModel = remember { AppViewModel() }
+    val products by viewModel.products.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
     var currentRoute by remember { mutableStateOf<DeliveryRoute>(DeliveryRoute.Tienda) }
 
-    // Estado global de sesión compartido (por defecto true)
-    var isLoggedIn by remember { mutableStateOf(true) }
+    // Estado global de sesión compartido (inicia en false)
+    var isLoggedIn by remember { mutableStateOf(false) }
+    var loggedInCliente by remember { mutableStateOf<ClienteResponse?>(null) }
 
-    // Estado global del carrito y pantalla de carrito completa
-    val cartItems = remember { mutableStateListOf<CartItem>() }
+    // Estado global del carrito y pantallas
+    val cartItems = viewModel.cartItems
+    val ordersList = viewModel.ordersList
+
     var showCartScreen by remember { mutableStateOf(false) }
-
-    // Diálogo de aviso cuando usuario invitado intenta agregar al carrito
     var showLoginRequiredDialog by remember { mutableStateOf(false) }
+    var showLoginDialog by remember { mutableStateOf(false) }
+    var showRegisterDialog by remember { mutableStateOf(false) }
+    var loginError by remember { mutableStateOf<String?>(null) }
+    var registrationError by remember { mutableStateOf<String?>(null) }
+    var orderError by remember { mutableStateOf<String?>(null) }
+    var showOrderErrorDialog by remember { mutableStateOf(false) }
 
-    // Direcciones disponibles y dirección seleccionada
-    val addresses = remember { mutableStateListOf("Av. Principal 123, Lima", "Calle Los Pinos 456, Miraflores") }
-    var selectedAddress by remember { mutableStateOf(addresses[0]) }
-
-    // Estado global de pedidos (inicializado con ejemplos detallados)
-    val ordersList = remember {
-        mutableStateListOf(
-            OrderModel(
-                id = "#1089",
-                title = "Pedido #1089",
-                status = "En Camino 🛵",
-                totalStr = "$30.00",
-                details = "1x Hamburguesa Deluxe",
-                date = "Hoy, 11:15 AM",
-                address = "Av. Principal 123, Lima",
-                deliveryFee = "$5.00",
-                itemsSummary = listOf("1x Hamburguesa Deluxe ($25.00)")
-            ),
-            OrderModel(
-                id = "#1072",
-                title = "Pedido #1072",
-                status = "Entregado ✅",
-                totalStr = "$50.00",
-                details = "1x Pizza Pepperoni",
-                date = "Ayer, 08:30 PM",
-                address = "Calle Los Pinos 456, Miraflores",
-                deliveryFee = "$5.00",
-                itemsSummary = listOf("1x Pizza Pepperoni ($45.00)")
-            )
-        )
-    }
+    val addresses = remember { mutableStateListOf<String>() }
+    var selectedAddress by remember { mutableStateOf("") }
 
     val totalCartCount = cartItems.sumOf { it.quantity }
 
@@ -79,7 +63,6 @@ fun CustomerMainContent(onLogout: () -> Unit) {
     )
 
     if (showCartScreen) {
-        // Pantalla Completa de Carrito de Compras
         CartScreen(
             isLoggedIn = isLoggedIn,
             cartItems = cartItems,
@@ -95,44 +78,33 @@ fun CustomerMainContent(onLogout: () -> Unit) {
                 selectedAddress = addr
             },
             onAddNewAddress = { newAddr ->
-                addresses.add(newAddr)
+                if (!addresses.contains(newAddr)) {
+                    addresses.add(newAddr)
+                }
                 selectedAddress = newAddr
             },
             onBackClick = {
                 showCartScreen = false
             },
             onConfirmOrder = {
-                val subtotal = cartItems.sumOf { it.product.price * it.quantity }
-                val deliveryFeeValue = 5.0
-                val totalWithDelivery = subtotal + deliveryFeeValue
-                
-                val newOrderId = "#${1100 + ordersList.size}"
-                val itemsSummaryList = cartItems.map { "${it.quantity}x ${it.product.name} (${it.product.priceStr})" }
-                val detailsText = cartItems.joinToString(", ") { "${it.quantity}x ${it.product.name}" }
-                
-                val newOrder = OrderModel(
-                    id = newOrderId,
-                    title = "Pedido $newOrderId",
-                    status = "En preparación 🛵",
-                    totalStr = "$${totalWithDelivery}0",
-                    details = detailsText,
-                    date = "Hoy, Recién realizado",
-                    address = selectedAddress,
-                    deliveryFee = "$${deliveryFeeValue}0",
-                    itemsSummary = itemsSummaryList
+                val shippingAddr = if (selectedAddress.isNotBlank()) selectedAddress else "Dirección principal"
+                val activeClienteId = loggedInCliente?.id ?: 1L
+                viewModel.confirmOrder(
+                    clienteId = activeClienteId,
+                    address = shippingAddr,
+                    onSuccess = { _ ->
+                        showCartScreen = false
+                        currentRoute = DeliveryRoute.MisPedidos
+                    },
+                    onError = { err ->
+                        orderError = err
+                        showOrderErrorDialog = true
+                    }
                 )
-                ordersList.add(0, newOrder)
-
-                // Limpiar carrito y cerrar pantalla de carrito
-                cartItems.clear()
-                showCartScreen = false
-
-                // Redirigir a Mis Pedidos
-                currentRoute = DeliveryRoute.MisPedidos
             },
             onGoToLogin = {
                 showCartScreen = false
-                currentRoute = DeliveryRoute.Usuario
+                showLoginDialog = true
             }
         )
     } else {
@@ -210,6 +182,7 @@ fun CustomerMainContent(onLogout: () -> Unit) {
                 when (currentRoute) {
                     is DeliveryRoute.Tienda -> TiendaScreen(
                         isLoggedIn = isLoggedIn,
+                        products = products,
                         onAddToCart = { product ->
                             val existing = cartItems.find { it.product.id == product.id }
                             if (existing != null) {
@@ -226,16 +199,49 @@ fun CustomerMainContent(onLogout: () -> Unit) {
                         isLoggedIn = isLoggedIn,
                         ordersList = ordersList,
                         onGoToLogin = {
-                            currentRoute = DeliveryRoute.Usuario
+                            showLoginDialog = true
                         }
                     )
                     is DeliveryRoute.Configuracion -> ConfiguracionScreen()
                     is DeliveryRoute.Usuario -> UsuarioScreen(
                         isLoggedInExternal = isLoggedIn,
+                        cliente = loggedInCliente,
+                        addresses = addresses,
                         onSessionStateChanged = { newStatus ->
-                            isLoggedIn = newStatus
+                            if (newStatus) {
+                                showLoginDialog = true
+                            } else {
+                                isLoggedIn = false
+                                loggedInCliente = null
+                                addresses.clear()
+                            }
                         },
-                        onLogout = onLogout
+                        onRegisterClick = {
+                            showRegisterDialog = true
+                        },
+                        onUpdateAddress = { newAddr ->
+                            val currentClient = loggedInCliente
+                            if (currentClient != null) {
+                                viewModel.updateClienteAddress(
+                                    cliente = currentClient,
+                                    newAddress = newAddr,
+                                    onSuccess = { updated ->
+                                        loggedInCliente = updated
+                                        if (!addresses.contains(newAddr)) {
+                                            addresses.add(newAddr)
+                                        }
+                                        selectedAddress = newAddr
+                                    },
+                                    onError = { _ -> }
+                                )
+                            }
+                        },
+                        onLogout = {
+                            isLoggedIn = false
+                            loggedInCliente = null
+                            addresses.clear()
+                            onLogout()
+                        }
                     )
                 }
             }
@@ -252,7 +258,7 @@ fun CustomerMainContent(onLogout: () -> Unit) {
                 Button(
                     onClick = {
                         showLoginRequiredDialog = false
-                        currentRoute = DeliveryRoute.Usuario
+                        showLoginDialog = true
                     },
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -265,5 +271,110 @@ fun CustomerMainContent(onLogout: () -> Unit) {
                 }
             }
         )
+    }
+
+    // Diálogo de error al crear el pedido (ej. caja cerrada)
+    if (showOrderErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showOrderErrorDialog = false },
+            title = { Text("No se pudo procesar el pedido", fontWeight = FontWeight.Bold) },
+            text = { Text(orderError ?: "Ocurrió un error al registrar tu pedido en el sistema.") },
+            confirmButton = {
+                Button(
+                    onClick = { showOrderErrorDialog = false },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Entendido")
+                }
+            }
+        )
+    }
+
+    // Diálogo / Formulario de Inicio de Sesión Real con /api/clientes/login
+    if (showLoginDialog) {
+        Dialog(onDismissRequest = { showLoginDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier.fillMaxWidth().padding(16.dp)
+            ) {
+                LoginSheetContent(
+                    onLoginClick = { identifier, password ->
+                        loginError = null
+                        viewModel.loginCliente(
+                            identifier = identifier,
+                            password = password,
+                            onSuccess = { cliente ->
+                                addresses.clear()
+                                if (!cliente.direccion.isNullOrBlank()) {
+                                    addresses.add(cliente.direccion)
+                                    selectedAddress = cliente.direccion
+                                }
+                                loggedInCliente = cliente
+                                isLoggedIn = true
+                                showLoginDialog = false
+                                currentRoute = DeliveryRoute.Tienda
+                            },
+                            onError = { err ->
+                                loginError = err
+                            }
+                        )
+                    },
+                    onGoToRegister = {
+                        showLoginDialog = false
+                        showRegisterDialog = true
+                    },
+                    isLoading = isLoading,
+                    errorMessage = loginError
+                )
+            }
+        }
+    }
+
+    // Diálogo / Sheet de Registro de Cliente
+    if (showRegisterDialog) {
+        Dialog(onDismissRequest = { showRegisterDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier.fillMaxWidth().padding(16.dp)
+            ) {
+                RegisterSheetContent(
+                    onRegisterClick = { nombreCompleto, tipoDocumento, numeroDocumento, direccion, correo, password ->
+                        registrationError = null
+                        viewModel.registerCliente(
+                            nombreCompleto = nombreCompleto,
+                            tipoDocumento = tipoDocumento,
+                            numeroDocumento = numeroDocumento,
+                            direccion = direccion,
+                            correo = correo,
+                            password = password,
+                            onSuccess = { cliente ->
+                                addresses.clear()
+                                if (!cliente.direccion.isNullOrBlank()) {
+                                    addresses.add(cliente.direccion)
+                                    selectedAddress = cliente.direccion
+                                }
+                                loggedInCliente = cliente
+                                isLoggedIn = true
+                                showRegisterDialog = false
+                                currentRoute = DeliveryRoute.Tienda
+                            },
+                            onError = { err ->
+                                registrationError = err
+                            }
+                        )
+                    },
+                    onGoToLogin = {
+                        showRegisterDialog = false
+                        showLoginDialog = true
+                    },
+                    isLoading = isLoading,
+                    errorMessage = registrationError
+                )
+            }
+        }
     }
 }

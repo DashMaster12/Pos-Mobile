@@ -7,11 +7,12 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    kotlin("plugin.serialization") version "2.1.0"
 }
 
 kotlin {
     // 1. CONFIGURACIÓN DEL TARGET ANDROID
-    // Esto le dice a Kotlin que genere código compatible con la JVM de Android
+    // Esto le says a Kotlin que genere código compatible con la JVM de Android
     androidTarget {
         compilerOptions {
             // Establecemos Java 11 como objetivo (estándar actual para Android)
@@ -33,8 +34,6 @@ kotlin {
 
     // 3. FUENTES DE CÓDIGO Y DEPENDENCIAS (SourceSets)
     sourceSets {
-        // commonMain: Aquí va el 95% del código (Clean Architecture, NestJS, UI)
-        // Este código se comparte entre Android e iOS
         commonMain.dependencies {
             // Dependencias de UI (Compose Multiplatform)
             implementation(compose.runtime)
@@ -47,19 +46,24 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
+            // Ktor Client y Serialization
+            implementation("io.ktor:ktor-client-core:3.0.3")
+            implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
+            implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
+            implementation("io.ktor:ktor-client-logging:3.0.3")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+            // Coil 3 para Carga de Imágenes en Compose Multiplatform
+            implementation("io.coil-kt.coil3:coil-compose:3.0.4")
+            implementation("io.coil-kt.coil3:coil-network-ktor3:3.0.4")
         }
+
         androidMain.dependencies {
-            implementation(libs.androidx.activity.compose) // Para el launcher de cámara
+            implementation(libs.androidx.activity.compose)
             implementation(libs.compose.uiToolingPreview)
+            implementation("io.ktor:ktor-client-okhttp:3.0.3")
         }
 
-        // androidMain: Código que solo corre en Android (ej. integraciones específicas)
-        androidMain.dependencies {
-            implementation(libs.compose.uiToolingPreview)
-        }
-
-        // commonTest: Para pruebas unitarias compartidas
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
@@ -67,7 +71,6 @@ kotlin {
 }
 
 // 4. CONFIGURACIÓN ESPECÍFICA DE ANDROID (Fuera del bloque Kotlin)
-// Este bloque es necesario para que el plugin 'com.android.library' funcione
 android {
     namespace = "pe.edu.upeu.shared"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -76,7 +79,6 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
     }
 
-    // Sintaxis alternativa si la anterior sigue en rojo:
     compileOptions {
         sourceCompatibility(JavaVersion.VERSION_11)
         targetCompatibility(JavaVersion.VERSION_11)
@@ -85,6 +87,5 @@ android {
 
 // 5. DEPENDENCIAS DE HERRAMIENTAS
 dependencies {
-    // Permite ver la vista previa de Compose en el IDE
     debugImplementation(libs.compose.uiTooling)
 }

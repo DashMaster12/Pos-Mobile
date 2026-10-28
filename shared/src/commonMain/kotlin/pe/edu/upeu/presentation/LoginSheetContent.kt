@@ -12,10 +12,12 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun LoginSheetContent(
-    onLoginSuccess: (String) -> Unit,
-    onGoToRegister: ()-> Unit
+    onLoginClick: (String, String) -> Unit,
+    onGoToRegister: () -> Unit,
+    isLoading: Boolean = false,
+    errorMessage: String? = null
 ) {
-    var email by remember { mutableStateOf("") }
+    var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     Column(
@@ -25,7 +27,7 @@ fun LoginSheetContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Iniciar Sesión",
+            text = "Iniciar Sesión (Cliente)",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -34,10 +36,11 @@ fun LoginSheetContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Usuario / Email") },
-            modifier = Modifier.fillMaxWidth()
+            value = identifier,
+            onValueChange = { identifier = it },
+            label = { Text("Correo o N° de Documento") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -47,21 +50,33 @@ fun LoginSheetContent(
             onValueChange = { password = it },
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
+
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = errorMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+        }
 
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(
             onClick = {
-                // Simulación: asigna un nombre por código al autenticar
-                val user = if (email.isNotBlank()) email.substringBefore("@") else "Josué Pan"
-                onLoginSuccess(user)
+                if (identifier.isNotBlank() && password.isNotBlank()) {
+                    onLoginClick(identifier, password)
+                }
             },
+            enabled = !isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Iniciar sesión")
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text("Ingresar")
+            }
         }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(onClick = onGoToRegister) {

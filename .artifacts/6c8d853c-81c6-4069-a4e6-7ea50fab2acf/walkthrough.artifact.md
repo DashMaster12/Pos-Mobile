@@ -1,21 +1,16 @@
-# Walkthrough - Control Global de Sesión y Restricciones de Vistas
+# Walkthrough - Creación Real de Pedidos con Cliente Logueado
 
-He implementado con éxito la lógica de control de sesión simulada en toda la aplicación, restringiendo y gestionando de forma inteligente las funcionalidades interactivas cuando el usuario es invitado (`isLoggedIn == false`).
+He integrado el flujo de confirmación de pedidos (`POST /pos-venta-service/order`) utilizando el **ID real del cliente autenticado** (`loggedInCliente?.id`), asegurando que las órdenes se guarden correctamente en Supabase y aparezcan de inmediato en el POS web.
 
 ## Cambios Realizados
 
-### 1. Estado Global de Sesión (`CustomerMainContent.kt`)
-- Se elevó el estado booleano de sesión `isLoggedIn` (iniciando por defecto en `true`) a nivel del contenedor principal de la aplicación, compartiéndolo de manera unificada entre todas las pestañas y el carrito.
+### 1. Creación de Órdenes en el ViewModel (`AppViewModel.kt`)
+- Actualizado el método `confirmOrder` para aceptar `clienteId: Long` y pasarlo en el objeto `CreateOrderRequest` hacia el backend.
+- Añadido manejo de errores para capturar cualquier restricción del servidor (como la validación de caja abierta `GeneralCashBoxRepository` en Spring Boot).
 
-### 2. Restricciones en Tienda y Carrito
-- **Tienda (`TiendaScreen.kt`)**: Si el usuario está como invitado (`isLoggedIn == false`), al intentar presionar *"Agregar"* en cualquier tarjeta de producto, la aplicación intercepta la acción y muestra un **diálogo de alerta** (*"Inicio de sesión requerido"*) invitándolo a iniciar sesión.
-- **Carrito de Compras (`CartScreen.kt`)**: Si el usuario entra al carrito sin sesión activa, se muestra una vista ilustrativa de invitado con un botón de **"Iniciar Sesión"** que lo redirige a su perfil, deshabilitando el flujo de pago.
-
-### 3. Restricción en Mis Pedidos (`MisPedidosScreen.kt`)
-- Si el usuario cierra sesión, la pestaña **"Mis Pedidos"** oculta el historial de órdenes anteriores y muestra un estado vacío amigable con el mensaje *"Inicia sesión para ver tu historial de pedidos"* y un botón directo para iniciar sesión.
-
-### 4. Sincronización en Perfil de Usuario (`UsuarioScreen.kt`)
-- Sincronizado de forma bidireccional con el estado global: al pulsar *"Cerrar Sesión"* se actualiza la sesión a `false`, y al pulsar *"Iniciar Sesión"* se reactiva de manera interactiva.
+### 2. Integración en la Interfaz (`CustomerMainContent.kt`)
+- Al confirmar el pedido desde el carrito, la app envía automáticamente el ID del cliente logueado (`loggedInCliente?.id ?: 1L`).
+- Si ocurre algún error en el servidor al procesar la orden, se muestra un diálogo explicativo al usuario.
 
 ---
 
