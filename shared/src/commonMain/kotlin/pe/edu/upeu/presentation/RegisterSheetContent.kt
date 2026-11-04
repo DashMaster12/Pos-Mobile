@@ -2,15 +2,22 @@ package pe.edu.upeu.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val tiposDocumento = listOf("DNI", "RUC")
+
+private fun digitosRequeridos(tipoDocumento: String): Int = if (tipoDocumento == "RUC") 11 else 8
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterSheetContent(
     onRegisterClick: (String, String, String, String, String, String) -> Unit,
@@ -24,6 +31,15 @@ fun RegisterSheetContent(
     var direccion by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var tipoDocumentoExpanded by remember { mutableStateOf(false) }
+
+    val digitosDocumento = digitosRequeridos(tipoDocumento)
+    val documentoValido = numeroDocumento.length == digitosDocumento
+    val mensajeDocumento = if (tipoDocumento == "RUC") {
+        "El RUC debe tener exactamente 11 dígitos"
+    } else {
+        "El DNI debe tener exactamente 8 dígitos"
+    }
 
     Column(
         modifier = Modifier
@@ -56,19 +72,53 @@ fun RegisterSheetContent(
                 )
             }
             item {
-                OutlinedTextField(
-                    value = tipoDocumento,
-                    onValueChange = { tipoDocumento = it },
-                    label = { Text("Tipo de Documento (DNI, RUC, S/D)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                ExposedDropdownMenuBox(
+                    expanded = tipoDocumentoExpanded,
+                    onExpandedChange = { tipoDocumentoExpanded = it },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = tipoDocumento,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Tipo de Documento") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = tipoDocumentoExpanded)
+                        },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth(),
+                        singleLine = true
+                    )
+                    ExposedDropdownMenu(
+                        expanded = tipoDocumentoExpanded,
+                        onDismissRequest = { tipoDocumentoExpanded = false }
+                    ) {
+                        tiposDocumento.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    tipoDocumento = option
+                                    numeroDocumento = numeroDocumento.take(digitosRequeridos(option))
+                                    tipoDocumentoExpanded = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    }
+                }
             }
             item {
                 OutlinedTextField(
                     value = numeroDocumento,
-                    onValueChange = { numeroDocumento = it },
+                    onValueChange = { input ->
+                        numeroDocumento = input.filter { it.isDigit() }.take(digitosDocumento)
+                    },
                     label = { Text("Número de Documento") },
+                    supportingText = { Text(mensajeDocumento) },
+                    isError = numeroDocumento.isNotEmpty() && !documentoValido,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -112,7 +162,7 @@ fun RegisterSheetContent(
 
         Button(
             onClick = {
-                if (nombreCompleto.isNotBlank() && numeroDocumento.isNotBlank() && correo.isNotBlank() && password.isNotBlank()) {
+                if (nombreCompleto.isNotBlank() && documentoValido && correo.isNotBlank() && password.isNotBlank()) {
                     onRegisterClick(nombreCompleto, tipoDocumento, numeroDocumento, direccion, correo, password)
                 }
             },
