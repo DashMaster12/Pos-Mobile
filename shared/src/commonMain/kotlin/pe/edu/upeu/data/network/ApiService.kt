@@ -74,6 +74,19 @@ class ApiService {
         }
     }
 
+    suspend fun loginClienteByDocumento(numero: String): ClienteResponse? {
+        return try {
+            val response = client.get("$baseUrl/clientes-service/api/clientes/documento/$numero")
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun loginClienteWithCredentials(request: ClienteLoginRequest): ClienteResponse? {
         return try {
             val response = client.post("$baseUrl/clientes-service/api/clientes/login") {
@@ -100,6 +113,19 @@ class ApiService {
         } else {
             val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
             throw Exception("Servidor (${response.status.value}): $errorText")
+        }
+    }
+
+    suspend fun getOrdersByCliente(clienteId: Long): List<OrderResponse> {
+        return try {
+            val response = client.get("$baseUrl/pos-venta-service/order/cliente/$clienteId")
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

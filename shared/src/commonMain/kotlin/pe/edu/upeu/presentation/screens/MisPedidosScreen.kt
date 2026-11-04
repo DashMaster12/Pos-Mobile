@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +32,7 @@ data class OrderModel(
     val id: String,
     val title: String,
     val status: String,
+    val rawStatus: String = "EN_PREPARACION",
     val totalStr: String,
     val details: String,
     val date: String = "Hoy, 10:30 AM",
@@ -42,26 +44,48 @@ data class OrderModel(
 @Composable
 fun MisPedidosScreen(
     isLoggedIn: Boolean = true,
-    ordersList: List<OrderModel> = emptyList(),
+    activeOrders: List<OrderModel> = emptyList(),
+    historyOrders: List<OrderModel> = emptyList(),
+    onRefresh: () -> Unit = {},
     onGoToLogin: () -> Unit = {}
 ) {
+    var selectedTab by remember { mutableStateOf(0) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(
-            text = "Mis Pedidos",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "Revisa el historial y el estado actual de tus pedidos",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Mis Pedidos",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Sigue el estado en vivo de tus compras",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            if (isLoggedIn) {
+                IconButton(onClick = onRefresh) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refrescar",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -83,14 +107,14 @@ fun MisPedidosScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Inicia sesión para ver tu historial de pedidos",
+                        text = "Inicia sesión para ver tus pedidos",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Debes iniciar sesión para consultar el estado y detalle de tus órdenes anteriores.",
+                        text = "Debes iniciar sesión para consultar el estado y detalle de tus órdenes.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -103,24 +127,85 @@ fun MisPedidosScreen(
                     )
                 }
             }
-        } else if (ordersList.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+        } else {
+            // Pestañas de selección: "En Curso" e "Historial"
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
             ) {
-                Text(
-                    text = "No tienes pedidos recientes",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = {
+                        Text(
+                            text = "En Curso (${activeOrders.size})",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = {
+                        Text(
+                            text = "Historial (${historyOrders.size})",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 )
             }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(ordersList) { order ->
-                    ExpandableOrderCard(order = order)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            when (selectedTab) {
+                0 -> {
+                    // Pestaña En Curso: Mostrar unicamente pedidos activos (EN_PREPARACION, EN_CAMINO)
+                    if (activeOrders.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No tienes pedidos en curso actualmente",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(activeOrders) { order ->
+                                ExpandableOrderCard(order = order, isActive = true)
+                            }
+                        }
+                    }
+                }
+                1 -> {
+                    // Pestaña Historial: Mostrar pedidos finalizados (ENTREGADO, CANCELADO)
+                    if (historyOrders.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No tienes historial de pedidos anteriores",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(historyOrders) { order ->
+                                ExpandableOrderCard(order = order, isActive = false)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -128,20 +213,37 @@ fun MisPedidosScreen(
 }
 
 @Composable
-fun ExpandableOrderCard(order: OrderModel) {
+fun ExpandableOrderCard(
+    order: OrderModel,
+    isActive: Boolean = true
+) {
     var expanded by remember { mutableStateOf(false) }
+
+    val rawStatus = order.rawStatus.uppercase()
+    val isPreparing = rawStatus == "EN_PREPARACION" || order.status.contains("preparación", ignoreCase = true)
+    val isShipping = rawStatus == "EN_CAMINO" || order.status.contains("camino", ignoreCase = true)
+    val isCanceled = rawStatus == "CANCELADO" || order.status.contains("cancelado", ignoreCase = true)
 
     // Color distintivo para el badge de estado
     val badgeContainerColor = when {
-        order.status.contains("Preparación", ignoreCase = true) -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
-        order.status.contains("Camino", ignoreCase = true) -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        isPreparing -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+        isShipping -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        isCanceled -> MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
         else -> Color(0xFFDCFCE7) // Verde claro para entregado
     }
 
     val badgeTextColor = when {
-        order.status.contains("Preparación", ignoreCase = true) -> Color(0xFFB45309) // Ámbar oscuro
-        order.status.contains("Camino", ignoreCase = true) -> MaterialTheme.colorScheme.primary
+        isPreparing -> Color(0xFFB45309) // Ámbar oscuro
+        isShipping -> MaterialTheme.colorScheme.primary
+        isCanceled -> MaterialTheme.colorScheme.error
         else -> Color(0xFF166534) // Verde oscuro
+    }
+
+    val statusSubtitle = when {
+        isPreparing -> "🛵 Tu pedido se está preparando en cocina..."
+        isShipping -> "🚚 ¡El repartidor va en camino a tu dirección!"
+        isCanceled -> "❌ Pedido cancelado por el restaurante"
+        else -> "✅ Pedido completado y entregado"
     }
 
     Card(
@@ -205,6 +307,16 @@ fun ExpandableOrderCard(order: OrderModel) {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Subtítulo con mensaje animado según estado activo
+            Text(
+                text = statusSubtitle,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = badgeTextColor
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -250,9 +362,18 @@ fun ExpandableOrderCard(order: OrderModel) {
                         Text(text = "Productos del Pedido", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
 
-                    order.itemsSummary.forEach { item ->
+                    if (order.itemsSummary.isNotEmpty()) {
+                        order.itemsSummary.forEach { item ->
+                            Text(
+                                text = "• $item",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 24.dp)
+                            )
+                        }
+                    } else if (order.details.isNotBlank()) {
                         Text(
-                            text = "• $item",
+                            text = "• ${order.details}",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 24.dp)

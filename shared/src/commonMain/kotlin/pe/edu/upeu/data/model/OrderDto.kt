@@ -10,20 +10,38 @@ data class ProductRef(
 @Serializable
 data class OrderDetailRequest(
     val product: ProductRef,
-    val quantity: Int
+    val quantity: Int,
+    val kitchenNotes: String? = null
 )
 
 @Serializable
 data class CreateOrderRequest(
     val clienteId: Long,
-    val orderType: String = "DELIVERY",
+    val customerName: String? = null,
+    val customerDocument: String? = null,
+    val customerAddress: String? = null,
     val details: List<OrderDetailRequest>
 )
 
 @Serializable
+data class OrderDetailResponse(
+    val id: Long? = null,
+    val product: ProductDto? = null,
+    val quantity: Int? = null,
+    val unitPrice: Double? = null,
+    val subtotal: Double? = null,
+    val kitchenNotes: String? = null
+)
+
+@Serializable
 data class OrderResponse(
-    val id: Long,
+    val id: Long? = null,
     val orderNumber: Int? = null,
+    val status: String? = null,
     val totalAmount: Double? = null,
-    val customerName: String? = null
+    val customerName: String? = null,
+    val customerDocument: String? = null,
+    val customerAddress: String? = null,
+    val creationDate: String? = null,
+    val details: List<OrderDetailResponse>? = null
 )
