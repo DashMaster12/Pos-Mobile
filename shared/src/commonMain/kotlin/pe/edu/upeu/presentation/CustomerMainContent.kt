@@ -19,10 +19,12 @@ import pe.edu.upeu.presentation.screens.TiendaScreen
 import pe.edu.upeu.presentation.screens.UsuarioScreen
 import pe.edu.upeu.presentation.viewmodel.AppViewModel
 
-data class CartItem(
+class CartItem(
     val product: ProductDto,
-    var quantity: Int
-)
+    initialQuantity: Int
+) {
+    var quantity by mutableIntStateOf(initialQuantity)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
