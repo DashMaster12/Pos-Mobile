@@ -54,7 +54,7 @@ fun CustomerMainContent(onLogout: () -> Unit) {
     val addresses = remember { mutableStateListOf<String>() }
     var selectedAddress by remember { mutableStateOf("") }
 
-    val totalCartCount = cartItems.sumOf { it.quantity }
+    val totalCartCount = cartItems.size
 
     val items = listOf(
         DeliveryRoute.Tienda,
