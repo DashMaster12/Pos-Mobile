@@ -11,6 +11,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import pe.edu.upeu.data.model.ProductDto
 import pe.edu.upeu.presentation.components.DeliveryButton
+import pe.edu.upeu.presentation.components.ProductDetailDialog
 
 @Composable
 fun TiendaScreen(
@@ -36,6 +41,8 @@ fun TiendaScreen(
     onGoToActiveOrders: () -> Unit = {},
     onRetry: () -> Unit = {}
 ) {
+    var selectedProduct by remember { mutableStateOf<ProductDto?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -236,14 +243,8 @@ fun TiendaScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 DeliveryButton(
-                                    text = "Agregar",
-                                    onClick = {
-                                        if (isLoggedIn) {
-                                            onAddToCart(product)
-                                        } else {
-                                            onLoginRequired()
-                                        }
-                                    },
+                                    text = "Ver",
+                                    onClick = { selectedProduct = product },
                                     modifier = Modifier.fillMaxWidth().height(38.dp)
                                 )
                             }
@@ -251,6 +252,21 @@ fun TiendaScreen(
                     }
                 }
             }
+        }
+
+        selectedProduct?.let { product ->
+            ProductDetailDialog(
+                product = product,
+                onDismiss = { selectedProduct = null },
+                onAddToCart = {
+                    if (isLoggedIn) {
+                        onAddToCart(product)
+                    } else {
+                        onLoginRequired()
+                    }
+                    selectedProduct = null
+                }
+            )
         }
     }
 }
