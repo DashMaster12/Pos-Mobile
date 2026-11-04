@@ -10,9 +10,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun ConfiguracionScreen() {
+fun ConfiguracionScreen(
+    darkModeEnabled: Boolean,
+    onDarkModeChange: (Boolean) -> Unit
+) {
     var notificationsEnabled by remember { mutableStateOf(true) }
-    var darkModeEnabled by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -60,10 +62,10 @@ fun ConfiguracionScreen() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Modo Oscuro (Próximamente)", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text("Modo oscuro", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     Switch(
                         checked = darkModeEnabled,
-                        onCheckedChange = { darkModeEnabled = it }
+                        onCheckedChange = onDarkModeChange
                     )
                 }
             }

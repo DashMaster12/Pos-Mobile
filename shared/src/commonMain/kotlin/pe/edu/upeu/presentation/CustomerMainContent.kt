@@ -28,7 +28,11 @@ class CartItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomerMainContent(onLogout: () -> Unit) {
+fun CustomerMainContent(
+    onLogout: () -> Unit,
+    darkModeEnabled: Boolean,
+    onDarkModeChange: (Boolean) -> Unit
+) {
     val viewModel = remember { AppViewModel() }
     val products by viewModel.products.collectAsState()
     val activeOrders by viewModel.activeOrders.collectAsState()
@@ -230,7 +234,10 @@ fun CustomerMainContent(onLogout: () -> Unit) {
                             showLoginDialog = true
                         }
                     )
-                    is DeliveryRoute.Configuracion -> ConfiguracionScreen()
+                    is DeliveryRoute.Configuracion -> ConfiguracionScreen(
+                        darkModeEnabled = darkModeEnabled,
+                        onDarkModeChange = onDarkModeChange
+                    )
                     is DeliveryRoute.Usuario -> UsuarioScreen(
                         isLoggedInExternal = isLoggedIn,
                         cliente = loggedInCliente,

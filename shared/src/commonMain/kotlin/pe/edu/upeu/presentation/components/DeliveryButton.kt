@@ -11,10 +11,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import pe.edu.upeu.presentation.theme.AleBluePrimary
 
 /**
- * Botón corporativo reutilizable para la app de Alé Burgers con diseño plano y sólido.
+ * Botón reutilizable. Toma el primario del tema para seguir el modo claro u oscuro.
  */
 @Composable
 fun DeliveryButton(
@@ -24,8 +23,8 @@ fun DeliveryButton(
     enabled: Boolean = true,
     isLoading: Boolean = false,
     icon: ImageVector? = null,
-    containerColor: Color = AleBluePrimary,
-    contentColor: Color = Color.White
+    containerColor: Color = MaterialTheme.colorScheme.primary,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimary
 ) {
     Button(
         onClick = onClick,

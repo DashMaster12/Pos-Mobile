@@ -236,6 +236,7 @@ fun UsuarioScreen(
                         onLogout()
                     },
                     containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
