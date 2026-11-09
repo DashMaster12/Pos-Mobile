@@ -20,9 +20,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 import pe.edu.upeu.presentation.components.PosDropDownMenu
-import pe.edu.upeu.presentation.theme.CyanContainer
-import pe.edu.upeu.presentation.theme.PrimaryCyan
-import pe.edu.upeu.presentation.theme.TextLight
+import pe.edu.upeu.presentation.theme.AleBluePrimary
+import pe.edu.upeu.presentation.theme.AleTextLight
+import pe.edu.upeu.presentation.theme.AleYellowSecondary
 
 enum class AuthSheetState { LOGIN, REGISTER }
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +76,7 @@ fun MainContent(onLogout: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(PrimaryCyan) // 🎨 Fondo verde/azulado principal
+                        .background(AleBluePrimary)
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -85,7 +85,7 @@ fun MainContent(onLogout: () -> Unit) {
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = "Perfil",
                             modifier = Modifier.size(60.dp),
-                            tint = TextLight.copy(alpha = 0.9f) // 🎨 Blanco brillante
+                            tint = AleTextLight.copy(alpha = 0.9f)
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -93,7 +93,7 @@ fun MainContent(onLogout: () -> Unit) {
                         if (isLoggedIn) {
                             Text(
                                 text = "Hola, $userName",
-                                color = TextLight,
+                                color = AleTextLight,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -106,8 +106,8 @@ fun MainContent(onLogout: () -> Unit) {
                             ) {
                                 Text(
                                     "Cerrar Sesión",
-                                    color = CyanContainer
-                                ) // 🎨 Verde/celeste claro
+                                    color = AleYellowSecondary
+                                )
                             }
                         } else {
                             Button(
@@ -116,8 +116,8 @@ fun MainContent(onLogout: () -> Unit) {
                                     showAuthSheet = true
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = CyanContainer, // 🎨 Fondo claro desplegable
-                                    contentColor = PrimaryCyan       // 🎨 Texto e iconos principales
+                                    containerColor = AleYellowSecondary,
+                                    contentColor = AleBluePrimary
                                 )
                             ) {
                                 Text("iniciar sesión", fontWeight = FontWeight.Bold)
@@ -172,8 +172,8 @@ fun MainContent(onLogout: () -> Unit) {
                 when (currentAuthSheet) {
                     AuthSheetState.LOGIN -> {
                         LoginSheetContent(
-                            onLoginSuccess = { name ->
-                                userName = name
+                            onLoginClick = { identifier, _ ->
+                                userName = identifier
                                 isLoggedIn = true
                                 showAuthSheet = false
                                 scope.launch { drawerState.close() }
@@ -186,8 +186,8 @@ fun MainContent(onLogout: () -> Unit) {
 
                     AuthSheetState.REGISTER -> {
                         RegisterSheetContent(
-                            onRegisterSuccess = { name ->
-                                userName = name
+                            onRegisterClick = { nombre, _, _, _, _, _ ->
+                                userName = nombre
                                 isLoggedIn = true
                                 showAuthSheet = false
                                 scope.launch { drawerState.close() }

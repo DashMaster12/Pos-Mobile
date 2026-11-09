@@ -13,6 +13,14 @@ sealed class Screen {
     object Main : Screen() // Contenedor principal de la app de delivery
 }
 
+// Rutas del cajón del POS de staff. La app de cliente usa DeliveryRoute.
+sealed class PosRoute(val title: String) {
+    object Dashboard : PosRoute("Dashboard")
+    object POS : PosRoute("POS")
+    object Ordenes : PosRoute("Órdenes")
+    object Caja : PosRoute("Caja")
+}
+
 // Rutas de navegación inferior (Bottom Navigation) para la app de delivery
 sealed class DeliveryRoute(val route: String, val title: String, val icon: ImageVector) {
     object Tienda : DeliveryRoute("tienda", "Tienda", Icons.Default.Home)
