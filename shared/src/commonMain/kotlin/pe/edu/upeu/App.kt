@@ -30,9 +30,10 @@ fun App() {
             // Ya inicializado
         }
     }
-    var darkModeEnabled by remember { mutableStateOf(false) }
 
-    AppTheme(darkTheme = darkModeEnabled) {
+    var darkMode by remember { mutableStateOf(false) }
+
+    AppTheme(darkTheme = darkMode) {
         var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (currentScreen) {
@@ -44,8 +45,8 @@ fun App() {
                 )
                 is Screen.Main -> CustomerMainContent(
                     onLogout = { currentScreen = Screen.Welcome },
-                    darkModeEnabled = darkModeEnabled,
-                    onDarkModeChange = {darkModeEnabled = it}
+                    darkModeEnabled = darkMode,
+                    onDarkModeChange = { darkMode = it }
                 )
             }
         }

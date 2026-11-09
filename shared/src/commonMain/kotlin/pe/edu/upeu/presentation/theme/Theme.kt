@@ -1,51 +1,76 @@
 package pe.edu.upeu.presentation.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 
-private val AleLightColorScheme = lightColorScheme(
-    primary = AleBluePrimary,
-    onPrimary = AleSurfaceLight,
-    primaryContainer = AleBackgroundLight,
-    onPrimaryContainer = AleBluePrimary,
-    secondary = AleYellowSecondary,
-    onSecondary = AleTextDark,
-    tertiary = AleRedTertiary,
-    onTertiary = AleSurfaceLight,
-    background = AleBackgroundLight,
-    surface = AleSurfaceLight,
-    onBackground = AleTextDark,
-    onSurface = AleTextDark,
-    outline = AleOutline
+private val LightColorScheme = lightColorScheme(
+    primary = CyanPrimary,
+    onPrimary = CyanOnPrimary,
+    primaryContainer = CyanPrimaryContainer,
+    onPrimaryContainer = CyanOnPrimaryContainer,
+    secondary = CyanSecondary,
+    onSecondary = CyanOnSecondary,
+    secondaryContainer = CyanSecondaryContainer,
+    onSecondaryContainer = CyanOnSecondaryContainer,
+    tertiary = AzureTertiary,
+    onTertiary = AzureOnTertiary,
+    tertiaryContainer = AzureTertiaryContainer,
+    onTertiaryContainer = AzureOnTertiaryContainer,
+    background = CyanBackground,
+    onBackground = CyanOnSurface,
+    surface = CyanSurface,
+    onSurface = CyanOnSurface,
+    surfaceVariant = CyanSurfaceVariant,
+    onSurfaceVariant = CyanOnSurfaceVariant,
+    outline = CyanOutline,
+    outlineVariant = CyanOutlineVariant,
+    inverseSurface = CyanInverseSurface,
+    inverseOnSurface = CyanInverseOnSurface,
+    inversePrimary = CyanInversePrimary,
+    error = CyanError,
+    onError = CyanOnError,
+    errorContainer = CyanErrorContainer,
+    onErrorContainer = CyanOnErrorContainer
 )
 
-private val AleDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF93C5FD),
-    onPrimary = AleBlueDark,
-    primaryContainer = Color(0xFF1E3A8A),
-    onPrimaryContainer = Color(0xFFDBEAFE),
-    secondary = AleYellowSecondary,
-    onSecondary = AleTextDark,
-    tertiary = AleRedTertiary,
-    onTertiary = AleSurfaceLight,
-    background = AleBackgroundDark,
-    surface = AleSurfaceDark,
-    onBackground = AleTextLight,
-    onSurface = AleTextLight,
-    onSurfaceVariant = Color(0xFFCBD5E1),
-    outline = AleOutline
+private val DarkColorScheme = darkColorScheme(
+    primary = CyanPrimaryDark,
+    onPrimary = CyanOnPrimaryDark,
+    primaryContainer = CyanPrimaryContainerDark,
+    onPrimaryContainer = CyanOnPrimaryContainerDark,
+    secondary = CyanSecondaryDark,
+    onSecondary = CyanOnSecondaryDark,
+    secondaryContainer = CyanSecondaryContainerDark,
+    onSecondaryContainer = CyanOnSecondaryContainerDark,
+    tertiary = AzureTertiaryDark,
+    onTertiary = AzureOnTertiaryDark,
+    tertiaryContainer = AzureTertiaryContainerDark,
+    onTertiaryContainer = AzureOnTertiaryContainerDark,
+    background = CyanBackgroundDark,
+    onBackground = CyanOnSurfaceDark,
+    surface = CyanSurfaceDark,
+    onSurface = CyanOnSurfaceDark,
+    surfaceVariant = CyanSurfaceVariantDark,
+    onSurfaceVariant = CyanOnSurfaceVariantDark,
+    outline = CyanOutlineDark,
+    outlineVariant = CyanOutlineVariantDark,
+    inverseSurface = CyanInverseSurfaceDark,
+    inverseOnSurface = CyanInverseOnSurfaceDark,
+    inversePrimary = CyanInversePrimaryDark,
+    error = CyanErrorDark,
+    onError = CyanOnErrorDark,
+    errorContainer = CyanErrorContainerDark,
+    onErrorContainer = CyanOnErrorContainerDark
 )
 
 @Composable
 fun AppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) AleDarkColorScheme else AleLightColorScheme
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

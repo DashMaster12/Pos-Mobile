@@ -18,8 +18,8 @@ import pe.edu.upeu.data.model.OrderResponse
 import pe.edu.upeu.data.model.ProductDto
 
 class ApiService {
-    // Gateway local de Docker. 10.0.2.2 es el host visto desde el emulador Android.
-    private val baseUrl = "http://10.0.2.2:4040"
+    // API Gateway base URL en Render
+    private val baseUrl = "https://ale-burgers-system.onrender.com"
 
     val client = HttpClient {
         install(ContentNegotiation) {
@@ -74,6 +74,19 @@ class ApiService {
         }
     }
 
+    suspend fun loginClienteByDocumento(numero: String): ClienteResponse? {
+        return try {
+            val response = client.get("$baseUrl/clientes-service/api/clientes/documento/$numero")
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun loginClienteWithCredentials(request: ClienteLoginRequest): ClienteResponse? {
         return try {
             val response = client.post("$baseUrl/clientes-service/api/clientes/login") {
@@ -100,6 +113,19 @@ class ApiService {
         } else {
             val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
             throw Exception("Servidor (${response.status.value}): $errorText")
+        }
+    }
+
+    suspend fun getOrdersByCliente(clienteId: Long): List<OrderResponse> {
+        return try {
+            val response = client.get("$baseUrl/pos-venta-service/order/cliente/$clienteId")
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

@@ -1,6 +1,7 @@
 package pe.edu.upeu.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -10,6 +11,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,17 +27,22 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import pe.edu.upeu.data.model.ProductDto
 import pe.edu.upeu.presentation.components.DeliveryButton
+import pe.edu.upeu.presentation.components.ProductDetailDialog
 
 @Composable
 fun TiendaScreen(
     isLoggedIn: Boolean = true,
     products: List<ProductDto> = emptyList(),
+    activeOrders: List<OrderModel> = emptyList(),
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onAddToCart: (ProductDto) -> Unit = {},
     onLoginRequired: () -> Unit = {},
+    onGoToActiveOrders: () -> Unit = {},
     onRetry: () -> Unit = {}
 ) {
+    var selectedProduct by remember { mutableStateOf<ProductDto?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -51,6 +61,55 @@ fun TiendaScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         
+        // Banner destacado si hay pedidos activos en curso
+        if (isLoggedIn && activeOrders.isNotEmpty()) {
+            val latestActive = activeOrders.first()
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onGoToActiveOrders() }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Pedido Activo ${latestActive.id}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val activeText = if (latestActive.rawStatus.contains("CAMINO", ignoreCase = true) || latestActive.status.contains("camino", ignoreCase = true)) {
+                            "🚚 ¡El repartidor va en camino a tu dirección!"
+                        } else {
+                            "🛵 Tu pedido se está preparando en cocina..."
+                        }
+                        Text(
+                            text = activeText,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onGoToActiveOrders,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("Ver Estado", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         when {
@@ -184,14 +243,8 @@ fun TiendaScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 DeliveryButton(
-                                    text = "Agregar",
-                                    onClick = {
-                                        if (isLoggedIn) {
-                                            onAddToCart(product)
-                                        } else {
-                                            onLoginRequired()
-                                        }
-                                    },
+                                    text = "Ver",
+                                    onClick = { selectedProduct = product },
                                     modifier = Modifier.fillMaxWidth().height(38.dp)
                                 )
                             }
@@ -199,6 +252,21 @@ fun TiendaScreen(
                     }
                 }
             }
+        }
+
+        selectedProduct?.let { product ->
+            ProductDetailDialog(
+                product = product,
+                onDismiss = { selectedProduct = null },
+                onAddToCart = {
+                    if (isLoggedIn) {
+                        onAddToCart(product)
+                    } else {
+                        onLoginRequired()
+                    }
+                    selectedProduct = null
+                }
+            )
         }
     }
 }

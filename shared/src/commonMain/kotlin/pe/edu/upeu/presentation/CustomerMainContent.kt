@@ -19,10 +19,12 @@ import pe.edu.upeu.presentation.screens.TiendaScreen
 import pe.edu.upeu.presentation.screens.UsuarioScreen
 import pe.edu.upeu.presentation.viewmodel.AppViewModel
 
-data class CartItem(
+class CartItem(
     val product: ProductDto,
-    var quantity: Int
-)
+    initialQuantity: Int
+) {
+    var quantity by mutableIntStateOf(initialQuantity)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,9 +32,11 @@ fun CustomerMainContent(
     onLogout: () -> Unit,
     darkModeEnabled: Boolean,
     onDarkModeChange: (Boolean) -> Unit
-                             ) {
+) {
     val viewModel = remember { AppViewModel() }
     val products by viewModel.products.collectAsState()
+    val activeOrders by viewModel.activeOrders.collectAsState()
+    val historyOrders by viewModel.historyOrders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     var currentRoute by remember { mutableStateOf<DeliveryRoute>(DeliveryRoute.Tienda) }
@@ -43,7 +47,6 @@ fun CustomerMainContent(
 
     // Estado global del carrito y pantallas
     val cartItems = viewModel.cartItems
-    val ordersList = viewModel.ordersList
 
     var showCartScreen by remember { mutableStateOf(false) }
     var showLoginRequiredDialog by remember { mutableStateOf(false) }
@@ -57,7 +60,7 @@ fun CustomerMainContent(
     val addresses = remember { mutableStateListOf<String>() }
     var selectedAddress by remember { mutableStateOf("") }
 
-    val totalCartCount = cartItems.sumOf { it.quantity }
+    val totalCartCount = cartItems.size
 
     val items = listOf(
         DeliveryRoute.Tienda,
@@ -65,6 +68,15 @@ fun CustomerMainContent(
         DeliveryRoute.Configuracion,
         DeliveryRoute.Usuario
     )
+
+    // Cargar órdenes cuando haya inicio de sesión activo
+    LaunchedEffect(isLoggedIn, loggedInCliente?.id) {
+        if (isLoggedIn) {
+            loggedInCliente?.id?.let { cId ->
+                viewModel.fetchOrdersForCliente(cId)
+            }
+        }
+    }
 
     if (showCartScreen) {
         CartScreen(
@@ -92,9 +104,8 @@ fun CustomerMainContent(
             },
             onConfirmOrder = {
                 val shippingAddr = if (selectedAddress.isNotBlank()) selectedAddress else "Dirección principal"
-                val activeClienteId = loggedInCliente?.id ?: 1L
                 viewModel.confirmOrder(
-                    clienteId = activeClienteId,
+                    cliente = loggedInCliente,
                     address = shippingAddr,
                     onSuccess = { _ ->
                         showCartScreen = false
@@ -164,7 +175,14 @@ fun CustomerMainContent(
                             icon = { Icon(screen.icon, contentDescription = screen.title) },
                             label = { Text(screen.title) },
                             selected = currentRoute == screen,
-                            onClick = { currentRoute = screen },
+                            onClick = { 
+                                currentRoute = screen 
+                                if (screen is DeliveryRoute.MisPedidos && isLoggedIn) {
+                                    loggedInCliente?.id?.let { cId ->
+                                        viewModel.fetchOrdersForCliente(cId)
+                                    }
+                                }
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -187,6 +205,7 @@ fun CustomerMainContent(
                     is DeliveryRoute.Tienda -> TiendaScreen(
                         isLoggedIn = isLoggedIn,
                         products = products,
+                        activeOrders = activeOrders,
                         onAddToCart = { product ->
                             val existing = cartItems.find { it.product.id == product.id }
                             if (existing != null) {
@@ -197,11 +216,20 @@ fun CustomerMainContent(
                         },
                         onLoginRequired = {
                             showLoginRequiredDialog = true
+                        },
+                        onGoToActiveOrders = {
+                            currentRoute = DeliveryRoute.MisPedidos
                         }
                     )
                     is DeliveryRoute.MisPedidos -> MisPedidosScreen(
                         isLoggedIn = isLoggedIn,
-                        ordersList = ordersList,
+                        activeOrders = activeOrders,
+                        historyOrders = historyOrders,
+                        onRefresh = {
+                            loggedInCliente?.id?.let { cId ->
+                                viewModel.fetchOrdersForCliente(cId)
+                            }
+                        },
                         onGoToLogin = {
                             showLoginDialog = true
                         }

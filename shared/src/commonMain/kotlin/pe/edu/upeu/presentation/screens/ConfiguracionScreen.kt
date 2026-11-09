@@ -16,7 +16,6 @@ fun ConfiguracionScreen(
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
 
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -63,7 +62,7 @@ fun ConfiguracionScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Modo Oscuro ", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text("Modo oscuro", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     Switch(
                         checked = darkModeEnabled,
                         onCheckedChange = onDarkModeChange
