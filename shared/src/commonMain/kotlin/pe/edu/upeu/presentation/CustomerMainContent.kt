@@ -18,6 +18,12 @@ import pe.edu.upeu.presentation.screens.MisPedidosScreen
 import pe.edu.upeu.presentation.screens.TiendaScreen
 import pe.edu.upeu.presentation.screens.UsuarioScreen
 import pe.edu.upeu.presentation.viewmodel.AppViewModel
+import kotlinx.coroutines.delay
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
+
+
+
 
 class CartItem(
     val product: ProductDto,
@@ -53,6 +59,8 @@ fun CustomerMainContent(
     var showLoginDialog by remember { mutableStateOf(false) }
     var showRegisterDialog by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
+    var loginSuccessName by remember { mutableStateOf<String?>(null) }
+    var registerSuccessName by remember { mutableStateOf<String?>(null) }
     var registrationError by remember { mutableStateOf<String?>(null) }
     var orderError by remember { mutableStateOf<String?>(null) }
     var showOrderErrorDialog by remember { mutableStateOf(false) }
@@ -308,6 +316,7 @@ fun CustomerMainContent(
         )
     }
 
+
     // Diálogo de error al crear el pedido (ej. caja cerrada)
     if (showOrderErrorDialog) {
         AlertDialog(
@@ -322,6 +331,74 @@ fun CustomerMainContent(
                     Text("Entendido")
                 }
             }
+        )
+    }
+
+    if (loginError != null) {
+        AlertDialog(
+            onDismissRequest = { loginError = null },
+            icon = {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = { Text("No se pudo iniciar sesión", fontWeight = FontWeight.Bold) },
+            text = { Text(loginError ?: "") },
+            confirmButton = {
+                Button(onClick = { loginError = null }, shape = RoundedCornerShape(8.dp)) {
+                    Text("Entendido")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (loginSuccessName != null) {
+        LaunchedEffect(loginSuccessName) {
+            delay(3000)
+            loginSuccessName = null
+        }
+        AlertDialog(
+            onDismissRequest = { },
+            icon = {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            },
+            title = { Text("Sesión iniciada", fontWeight = FontWeight.Bold) },
+            text = { Text("Hola, $loginSuccessName. Ya puedes continuar con tu pedido.") },
+            confirmButton = {},
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (registrationError != null) {
+        AlertDialog(
+            onDismissRequest = { registrationError = null },
+            icon = {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = { Text("No se pudo crear la cuenta", fontWeight = FontWeight.Bold) },
+            text = { Text(registrationError ?: "") },
+            confirmButton = {
+                Button(onClick = { registrationError = null }, shape = RoundedCornerShape(8.dp)) {
+                    Text("Entendido")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (registerSuccessName != null) {
+        LaunchedEffect(registerSuccessName) {
+            delay(3000)
+            registerSuccessName = null
+        }
+        AlertDialog(
+            onDismissRequest = { },
+            icon = {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            },
+            title = { Text("Cuenta creada", fontWeight = FontWeight.Bold) },
+            text = { Text("Hola, $registerSuccessName. Tu cuenta ya está lista.") },
+            confirmButton = {},
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
@@ -348,6 +425,7 @@ fun CustomerMainContent(
                                 }
                                 loggedInCliente = cliente
                                 isLoggedIn = true
+                                loginSuccessName = cliente.nombreCompleto ?: "Cliente"
                                 showLoginDialog = false
                                 currentRoute = DeliveryRoute.Tienda
                             },
@@ -360,8 +438,7 @@ fun CustomerMainContent(
                         showLoginDialog = false
                         showRegisterDialog = true
                     },
-                    isLoading = isLoading,
-                    errorMessage = loginError
+                    isLoading = isLoading
                 )
             }
         }
@@ -394,6 +471,7 @@ fun CustomerMainContent(
                                 }
                                 loggedInCliente = cliente
                                 isLoggedIn = true
+                                registerSuccessName = cliente.nombreCompleto ?: "Cliente"
                                 showRegisterDialog = false
                                 currentRoute = DeliveryRoute.Tienda
                             },

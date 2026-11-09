@@ -56,7 +56,7 @@ fun TiendaScreen(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Catálogo dinámico desde el servidor (Render)",
+            text = "Catálogo desde el servidor local",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -141,7 +141,7 @@ class AppViewModel : ViewModel() {
                 val response = apiService.registerCliente(request)
                 onSuccess(response)
             } catch (e: Exception) {
-                onError("Error al registrar cliente: ${e.message}")
+                onError("No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.")
             } finally {
                 _isLoading.value = false
             }
