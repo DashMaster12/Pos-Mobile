@@ -1,3 +1,7 @@
+# Pos-Mobile
+
+Proyecto de enlace para el proyecto anterior de aplicaciones distribuidas y el proyecto actual de aplicaciones moviles.
+
 This is a Kotlin Multiplatform project targeting Android.
 
 * [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.

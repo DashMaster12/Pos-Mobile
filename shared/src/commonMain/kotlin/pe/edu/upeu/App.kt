@@ -1,48 +1,53 @@
 package pe.edu.upeu
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import pos_mobile.shared.generated.resources.Res
-import pos_mobile.shared.generated.resources.compose_multiplatform
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.network.ktor3.KtorNetworkFetcherFactory
+import pe.edu.upeu.presentation.Screen
+import pe.edu.upeu.presentation.SplashContent
+import pe.edu.upeu.presentation.WelcomeContent
+import pe.edu.upeu.presentation.CustomerMainContent
+import pe.edu.upeu.presentation.theme.AppTheme
 
 @Composable
-@Preview
 fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+    // Inicializar Coil 3 con red Ktor de forma segura
+    LaunchedEffect(Unit) {
+        try {
+            SingletonImageLoader.setSafe { context ->
+                ImageLoader.Builder(context)
+                    .components {
+                        add(KtorNetworkFetcherFactory())
+                    }
+                    .build()
             }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
+        } catch (e: Exception) {
+            // Ya inicializado
+        }
+    }
+
+    var darkMode by remember { mutableStateOf(false) }
+
+    AppTheme(darkTheme = darkMode) {
+        var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            when (currentScreen) {
+                is Screen.Splash -> SplashContent(
+                    onTimeout = { currentScreen = Screen.Welcome }
+                )
+                is Screen.Welcome -> WelcomeContent(
+                    onStartClick = { currentScreen = Screen.Main }
+                )
+                is Screen.Main -> CustomerMainContent(
+                    onLogout = { currentScreen = Screen.Welcome },
+                    darkModeEnabled = darkMode,
+                    onDarkModeChange = { darkMode = it }
+                )
             }
         }
     }
