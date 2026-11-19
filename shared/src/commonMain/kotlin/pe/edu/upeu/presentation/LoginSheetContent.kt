@@ -38,7 +38,7 @@ fun LoginSheetContent(
         OutlinedTextField(
             value = identifier,
             onValueChange = { identifier = it },
-            label = { Text("Correo o N° de Documento") },
+            label = { Text("Correo Electrónico") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )

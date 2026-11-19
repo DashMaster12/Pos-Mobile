@@ -1,17 +1,13 @@
-# Tareas - Flujo de Pedidos, Seguimiento de Estados e Historial Segregado
+# Tareas de Implementación - Múltiples Direcciones y Formulario Validado
 
-- [x] **Fase 1: DTOs y ApiService**
-  - [x] Actualizar `OrderDto.kt` (sin `orderType`, añadiendo campos del cliente y `kitchenNotes`)
-  - [x] Añadir `getOrdersByCliente` en `ApiService.kt` (`GET /pos-venta-service/order/cliente/{clienteId}`)
-
-- [x] **Fase 2: AppViewModel**
-  - [x] Actualizar `confirmOrder` con los nuevos campos
-  - [x] Implementar `fetchOrdersForCliente` para dividir pedidos activos vs historial
-
-- [x] **Fase 3: Pantallas UI (TiendaScreen, MisPedidosScreen, CustomerMainContent)**
-  - [x] Añadir Banner de Pedido Activo en la parte superior de `TiendaScreen.kt`
-  - [x] Rediseñar `MisPedidosScreen.kt` con pestañas "En Curso" e "Historial"
-  - [x] Conectar la sincronización de pedidos en `CustomerMainContent.kt`
-
-- [x] **Fase 4: Verificación**
-  - [x] Ejecutar `gradle_build` (`assembleDebug`) (Build finished successfully)
+- [x] **Fase 1: Prompt para Antigravity (Actualización de Dirección en Backend)**
+  - [x] Proveer código para añadir el método `actualizar` en `DireccionService` y `DireccionController`
+- [x] **Fase 2: Actualización de DTOs y ApiService (KMP)**
+  - [x] Añadir `DireccionDto` en `AuthDto.kt` y actualizar `ClienteResponse`
+  - [x] Añadir métodos de red para direcciones en `ApiService.kt`
+- [x] **Fase 3: Rediseño de `UsuarioScreen.kt` con Formulario Validado**
+  - [x] Implementar diálogo modal bonito y validado para agregar/editar dirección
+  - [x] Listar direcciones guardadas con opción de principal y eliminar
+- [x] **Fase 4: Sincronización en `CartScreen.kt` y Verificación**
+  - [x] Actualizar selección de direcciones en el carrito
+  - [x] Ejecutar `gradle_build` (`assembleDebug`) para verificar compilación (Build finished successfully)

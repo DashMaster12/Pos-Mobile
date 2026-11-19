@@ -11,6 +11,7 @@ data class ProductRef(
 data class OrderDetailRequest(
     val product: ProductRef,
     val quantity: Int,
+    val unitPrice: Double? = null,
     val kitchenNotes: String? = null
 )
 
