@@ -10,10 +10,13 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import pe.edu.upeu.data.model.CardPayRequest
 import pe.edu.upeu.data.model.ClienteLoginRequest
 import pe.edu.upeu.data.model.ClienteRequest
 import pe.edu.upeu.data.model.ClienteResponse
 import pe.edu.upeu.data.model.CreateOrderRequest
+import pe.edu.upeu.data.model.YapePayRequest
+import pe.edu.upeu.data.model.YapePayResponse
 import pe.edu.upeu.data.model.DireccionDto
 import pe.edu.upeu.data.model.OrderResponse
 import pe.edu.upeu.data.model.ProductDto
@@ -102,6 +105,30 @@ class ApiService {
         } catch (e: Exception) {
             null
         }
+    }
+
+    suspend fun payWithYape(request: YapePayRequest): YapePayResponse {
+        val response = client.post("$baseUrl/pos-venta-service/order/yape") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        }
+        val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+        throw Exception("Servidor (${response.status.value}): $errorText")
+    }
+
+    suspend fun payWithCard(request: CardPayRequest): YapePayResponse {
+        val response = client.post("$baseUrl/pos-venta-service/order/card") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        }
+        val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+        throw Exception("Servidor (${response.status.value}): $errorText")
     }
 
     suspend fun createOrder(request: CreateOrderRequest): OrderResponse {

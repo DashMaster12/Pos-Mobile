@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.edu.upeu.data.model.CardPayRequest
 import pe.edu.upeu.data.model.ClienteLoginRequest
+import pe.edu.upeu.data.model.YapePayRequest
 import pe.edu.upeu.data.model.ClienteRequest
 import pe.edu.upeu.data.model.ClienteResponse
 import pe.edu.upeu.data.model.CreateOrderRequest
@@ -201,6 +203,80 @@ class AppViewModel : ViewModel() {
                 onError("Error al actualizar dirección: ${e.message}")
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun payWithYape(
+        phone: String,
+        otp: String,
+        amount: Double,
+        email: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = apiService.payWithYape(
+                    YapePayRequest(
+                        phoneNumber = phone,
+                        otp = otp,
+                        amount = amount,
+                        email = email,
+                        description = "Pedido Ale Burgers"
+                    )
+                )
+                if (response.approved) {
+                    onSuccess()
+                } else {
+                    _isLoading.value = false
+                    onError(response.message ?: "Yape rechazó el pago.")
+                }
+            } catch (e: Exception) {
+                _isLoading.value = false
+                onError(e.message ?: "No se pudo cobrar con Yape.")
+            }
+        }
+    }
+
+    fun payWithCard(
+        cardNumber: String,
+        cardholder: String,
+        expirationMonth: Int,
+        expirationYear: Int,
+        securityCode: String,
+        documentNumber: String,
+        amount: Double,
+        email: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = apiService.payWithCard(
+                    CardPayRequest(
+                        cardNumber = cardNumber,
+                        cardholder = cardholder,
+                        expirationMonth = expirationMonth,
+                        expirationYear = expirationYear,
+                        securityCode = securityCode,
+                        documentNumber = documentNumber,
+                        amount = amount,
+                        email = email,
+                        description = "Pedido Ale Burgers"
+                    )
+                )
+                if (response.approved) {
+                    onSuccess()
+                } else {
+                    _isLoading.value = false
+                    onError(response.message ?: "La tarjeta fue rechazada.")
+                }
+            } catch (e: Exception) {
+                _isLoading.value = false
+                onError(e.message ?: "No se pudo cobrar con tarjeta.")
             }
         }
     }
