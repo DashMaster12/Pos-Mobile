@@ -145,16 +145,12 @@ class ApiService {
     }
 
     suspend fun getOrdersByCliente(clienteId: Long): List<OrderResponse> {
-        return try {
-            val response = client.get("$baseUrl/pos-venta-service/order/cliente/$clienteId")
-            if (response.status.isSuccess()) {
-                response.body()
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            emptyList()
+        val response = client.get("$baseUrl/pos-venta-service/order/cliente/$clienteId")
+        if (response.status.isSuccess()) {
+            return response.body()
         }
+        val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+        throw Exception("Servidor (${response.status.value}): $errorText")
     }
 
     // --- MÉTODOS PARA GESTIÓN DE DIRECCIONES ---

@@ -60,6 +60,7 @@ fun CheckoutScreen(
 ) {
     var newAddress by remember { mutableStateOf("") }
     var payWithCard by remember { mutableStateOf(false) }
+    var changeAddress by remember { mutableStateOf(false) }
     var phone by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var cardNumber by remember { mutableStateOf("") }
@@ -106,13 +107,25 @@ fun CheckoutScreen(
                     SummaryRow("Envío", money(deliveryFee))
                     Spacer(Modifier.height(6.dp))
                     SummaryRow("Total", money(total), emphasize = true)
+                    if (!shownError.isNullOrBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            shownError,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     DeliveryButton(
                         text = "Pagar ${money(total)}",
                         isLoading = isLoading,
                         onClick = {
+                            val typedAddress = newAddress.trim()
+                            val address = selectedAddress.ifBlank {
+                                addresses.firstOrNull().orEmpty()
+                            }.ifBlank { typedAddress }
                             localError = when {
-                                selectedAddress.isBlank() -> "Elige una dirección de entrega."
+                                address.isBlank() -> "Escribe la dirección de entrega."
                                 !payWithCard && phone.filter { it.isDigit() }.length != 9 ->
                                     "Ingresa el celular de Yape, de 9 dígitos."
                                 !payWithCard && otp.filter { it.isDigit() }.length != 6 ->
@@ -127,6 +140,12 @@ fun CheckoutScreen(
                                 else -> null
                             }
                             if (localError != null) return@DeliveryButton
+                            if (selectedAddress.isBlank()) {
+                                onSelectAddress(address)
+                            }
+                            if (addresses.none { it == address }) {
+                                onAddAddress(address)
+                            }
                             if (payWithCard) {
                                 val year = expirationYear.toInt()
                                 onPayCard(
@@ -158,51 +177,80 @@ fun CheckoutScreen(
             item { Spacer(Modifier.height(4.dp)) }
             item {
                 SectionCard(title = "Entrega") {
-                    if (addresses.isEmpty()) {
-                        Text(
-                            "Agrega la dirección donde llevamos el pedido.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    addresses.forEach { address ->
+                    val chosen = selectedAddress.ifBlank { addresses.firstOrNull().orEmpty() }
+                    if (chosen.isNotBlank() && !changeAddress) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            RadioButton(
-                                selected = address == selectedAddress,
-                                onClick = { onSelectAddress(address) }
-                            )
                             Icon(
                                 Icons.Default.LocationOn,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                address,
-                                modifier = Modifier.padding(start = 8.dp),
+                                chosen,
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .weight(1f),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
-                    }
-                    OutlinedTextField(
-                        value = newAddress,
-                        onValueChange = { newAddress = it },
-                        label = { Text("Nueva dirección") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    TextButton(
-                        onClick = {
-                            val clean = newAddress.trim()
-                            if (clean.isNotBlank()) {
-                                onAddAddress(clean)
-                                newAddress = ""
+                        TextButton(onClick = { changeAddress = true }) {
+                            Text("Cambiar dirección")
+                        }
+                    } else {
+                        if (addresses.isEmpty()) {
+                            Text(
+                                "Agrega la dirección donde llevamos el pedido.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        addresses.forEach { address ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = address == selectedAddress,
+                                    onClick = {
+                                        onSelectAddress(address)
+                                        changeAddress = false
+                                    }
+                                )
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    address,
+                                    modifier = Modifier.padding(start = 8.dp),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                             }
-                        },
-                        enabled = newAddress.isNotBlank()
-                    ) {
-                        Text("Usar esta dirección")
+                        }
+                        OutlinedTextField(
+                            value = newAddress,
+                            onValueChange = { newAddress = it },
+                            label = { Text("Nueva dirección") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        TextButton(
+                            onClick = {
+                                val clean = newAddress.trim()
+                                if (clean.isNotBlank()) {
+                                    onAddAddress(clean)
+                                    onSelectAddress(clean)
+                                    newAddress = ""
+                                    changeAddress = false
+                                }
+                            },
+                            enabled = newAddress.isNotBlank()
+                        ) {
+                            Text("Usar esta dirección")
+                        }
                     }
                 }
             }
@@ -230,20 +278,11 @@ fun CheckoutScreen(
                     Spacer(Modifier.height(8.dp))
                     if (!payWithCard) {
                         Text(
-                            "Abre Yape, pide el código de aprobación y escríbelo aquí. Para una prueba sin cobro real usa el celular 111111111 y el código 123456.",
+                            "Prueba: celular 111111111 y código 123456.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = phone,
-                            onValueChange = { phone = it.filter { char -> char.isDigit() }.take(9) },
-                            label = { Text("Celular Yape") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                        )
-                        Spacer(Modifier.height(8.dp))
                         OutlinedTextField(
                             value = otp,
                             onValueChange = { otp = it.filter { char -> char.isDigit() }.take(6) },
@@ -251,6 +290,15 @@ fun CheckoutScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = phone,
+                            onValueChange = { phone = it.filter { char -> char.isDigit() }.take(9) },
+                            label = { Text("Celular Yape") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                         )
                     } else {
                         Text(
