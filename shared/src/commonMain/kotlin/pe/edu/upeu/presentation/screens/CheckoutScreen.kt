@@ -58,9 +58,7 @@ fun CheckoutScreen(
     onPayYape: (phone: String, otp: String, amount: Double) -> Unit,
     onPayCard: (number: String, holder: String, month: Int, year: Int, cvv: String, document: String, amount: Double) -> Unit
 ) {
-    var newAddress by remember { mutableStateOf("") }
     var payWithCard by remember { mutableStateOf(false) }
-    var changeAddress by remember { mutableStateOf(false) }
     var phone by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var cardNumber by remember { mutableStateOf("") }
@@ -120,12 +118,11 @@ fun CheckoutScreen(
                         text = "Pagar ${money(total)}",
                         isLoading = isLoading,
                         onClick = {
-                            val typedAddress = newAddress.trim()
                             val address = selectedAddress.ifBlank {
                                 addresses.firstOrNull().orEmpty()
-                            }.ifBlank { typedAddress }
+                            }
                             localError = when {
-                                address.isBlank() -> "Escribe la dirección de entrega."
+                                address.isBlank() -> "Falta la dirección. Vuelve al carrito y agrégala."
                                 !payWithCard && phone.filter { it.isDigit() }.length != 9 ->
                                     "Ingresa el celular de Yape, de 9 dígitos."
                                 !payWithCard && otp.filter { it.isDigit() }.length != 6 ->
@@ -178,7 +175,7 @@ fun CheckoutScreen(
             item {
                 SectionCard(title = "Entrega") {
                     val chosen = selectedAddress.ifBlank { addresses.firstOrNull().orEmpty() }
-                    if (chosen.isNotBlank() && !changeAddress) {
+                    if (chosen.isNotBlank()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -196,60 +193,16 @@ fun CheckoutScreen(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
-                        TextButton(onClick = { changeAddress = true }) {
+                        TextButton(onClick = onBack) {
                             Text("Cambiar dirección")
                         }
                     } else {
-                        if (addresses.isEmpty()) {
-                            Text(
-                                "Agrega la dirección donde llevamos el pedido.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        addresses.forEach { address ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = address == selectedAddress,
-                                    onClick = {
-                                        onSelectAddress(address)
-                                        changeAddress = false
-                                    }
-                                )
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    address,
-                                    modifier = Modifier.padding(start = 8.dp),
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
-                        }
-                        OutlinedTextField(
-                            value = newAddress,
-                            onValueChange = { newAddress = it },
-                            label = { Text("Nueva dirección") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                        Text(
+                            "Vuelve al carrito y agrega la dirección de entrega.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        TextButton(
-                            onClick = {
-                                val clean = newAddress.trim()
-                                if (clean.isNotBlank()) {
-                                    onAddAddress(clean)
-                                    onSelectAddress(clean)
-                                    newAddress = ""
-                                    changeAddress = false
-                                }
-                            },
-                            enabled = newAddress.isNotBlank()
-                        ) {
-                            Text("Usar esta dirección")
+                        TextButton(onClick = onBack) {
+                            Text("Volver al carrito")
                         }
                     }
                 }
