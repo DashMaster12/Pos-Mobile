@@ -3,9 +3,12 @@ package pe.edu.upeu.presentation.viewmodel
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import pe.edu.upeu.data.model.CardPayRequest
 import pe.edu.upeu.data.model.ClienteLoginRequest
@@ -20,6 +23,7 @@ import pe.edu.upeu.data.model.ProductRef
 import pe.edu.upeu.data.network.ApiService
 import pe.edu.upeu.presentation.CartItem
 import pe.edu.upeu.presentation.screens.OrderModel
+import pe.edu.upeu.showOrderNotification
 
 class AppViewModel : ViewModel() {
     private val apiService = ApiService()
@@ -34,6 +38,10 @@ class AppViewModel : ViewModel() {
     val historyOrders: StateFlow<List<OrderModel>> = _historyOrders.asStateFlow()
 
     val cartItems = mutableStateListOf<CartItem>()
+
+    private var watchJob: Job? = null
+    private val knownStatus = mutableMapOf<Long, String>()
+    private var ordersPrimed = false
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -66,21 +74,66 @@ class AppViewModel : ViewModel() {
 
     fun fetchOrdersForCliente(clienteId: Long) {
         viewModelScope.launch {
-            try {
-                val remoteOrders = apiService.getOrdersByCliente(clienteId)
-                val mapped = remoteOrders.map { dtoToModel(it) }
+            syncOrders(clienteId)
+        }
+    }
 
-                // Segregar entre pedidos activos e historial
-                _activeOrders.value = mapped.filter { 
-                    it.rawStatus == "EN_PREPARACION" || it.rawStatus == "EN_CAMINO" || it.status.contains("preparación", ignoreCase = true) || it.status.contains("camino", ignoreCase = true)
-                }
-
-                _historyOrders.value = mapped.filter { 
-                    it.rawStatus == "ENTREGADO" || it.rawStatus == "CANCELADO" || it.status.contains("entregado", ignoreCase = true) || it.status.contains("cancelado", ignoreCase = true)
-                }
-            } catch (e: Exception) {
-                // Muestra lista local si falla
+    fun watchOrders(clienteId: Long) {
+        watchJob?.cancel()
+        watchJob = viewModelScope.launch {
+            while (isActive) {
+                syncOrders(clienteId)
+                delay(15_000)
             }
+        }
+    }
+
+    fun stopWatchingOrders() {
+        watchJob?.cancel()
+        watchJob = null
+        knownStatus.clear()
+        ordersPrimed = false
+    }
+
+    private suspend fun syncOrders(clienteId: Long) {
+        try {
+            val remoteOrders = apiService.getOrdersByCliente(clienteId)
+            if (ordersPrimed) {
+                remoteOrders.forEach { dto ->
+                    val id = dto.id ?: return@forEach
+                    val status = dto.status ?: "EN_PREPARACION"
+                    val previous = knownStatus[id]
+                    if (previous != null && previous != status) {
+                        val number = dto.orderNumber?.toLong() ?: id
+                        showOrderNotification("Pedido #$number", statusMessage(status, number))
+                    }
+                    knownStatus[id] = status
+                }
+            } else {
+                remoteOrders.forEach { dto ->
+                    val id = dto.id ?: return@forEach
+                    knownStatus[id] = dto.status ?: "EN_PREPARACION"
+                }
+                ordersPrimed = true
+            }
+
+            val mapped = remoteOrders.map { dtoToModel(it) }
+            _activeOrders.value = mapped.filter {
+                it.rawStatus == "EN_PREPARACION" || it.rawStatus == "EN_CAMINO" || it.status.contains("preparación", ignoreCase = true) || it.status.contains("camino", ignoreCase = true)
+            }
+            _historyOrders.value = mapped.filter {
+                it.rawStatus == "ENTREGADO" || it.rawStatus == "CANCELADO" || it.status.contains("entregado", ignoreCase = true) || it.status.contains("cancelado", ignoreCase = true)
+            }
+        } catch (e: Exception) {
+            // Conserva la lista local si el servidor no responde
+        }
+    }
+
+    private fun statusMessage(status: String, number: Long): String {
+        return when (status) {
+            "EN_CAMINO" -> "Tu pedido #$number va en camino"
+            "ENTREGADO" -> "Tu pedido #$number fue entregado"
+            else -> "Tu pedido #$number está en preparación"
         }
     }
 
@@ -314,8 +367,8 @@ class AppViewModel : ViewModel() {
 
             try {
                 val response = apiService.createOrder(request)
-                val code = response.orderNumber?.let { "#$it" } ?: "#${response.id ?: 0}"
-                
+                val orderNo = response.orderNumber ?: response.id ?: 0
+                val code = "#$orderNo"
                 val itemsSummaryList = cartItems.map { 
                     val notes = if (it.customizationNotes.isNotBlank()) " (${it.customizationNotes})" else ""
                     "${it.quantity}x ${it.product.name}$notes ($${it.unitPrice})"

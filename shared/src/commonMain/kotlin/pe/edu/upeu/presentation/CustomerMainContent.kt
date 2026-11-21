@@ -20,8 +20,10 @@ import pe.edu.upeu.presentation.screens.ConfiguracionScreen
 import pe.edu.upeu.presentation.screens.MisPedidosScreen
 import pe.edu.upeu.presentation.screens.ProductCustomizationScreen
 import pe.edu.upeu.presentation.screens.TiendaScreen
+import pe.edu.upeu.presentation.screens.OrderModel
 import pe.edu.upeu.presentation.screens.UsuarioScreen
 import pe.edu.upeu.presentation.viewmodel.AppViewModel
+import pe.edu.upeu.showOrderNotification
 
 class CartItem(
     val product: ProductDto,
@@ -60,6 +62,7 @@ fun CustomerMainContent(
     var customizingProduct by remember { mutableStateOf<ProductDto?>(null) }
     var orderError by remember { mutableStateOf<String?>(null) }
     var showOrderErrorDialog by remember { mutableStateOf(false) }
+    var paidOrder by remember { mutableStateOf<OrderModel?>(null) }
 
     val addresses = remember { mutableStateListOf<String>() }
     val direccionesState = remember { mutableStateListOf<DireccionDto>() }
@@ -81,13 +84,13 @@ fun CustomerMainContent(
                 addresses.clear()
                 list.forEach { d ->
                     addresses.add(d.direccion)
-                    if (d.esPrincipal == true) {
-                        selectedAddress = d.direccion
-                    }
+                }
+                if (selectedAddress.isNotBlank() && addresses.none { it == selectedAddress }) {
+                    addresses.add(selectedAddress)
                 }
 
                 if (selectedAddress.isBlank() && addresses.isNotEmpty()) {
-                    selectedAddress = addresses[0]
+                    selectedAddress = list.firstOrNull { it.esPrincipal == true }?.direccion ?: addresses[0]
                 }
             }
         }
@@ -97,8 +100,11 @@ fun CustomerMainContent(
     LaunchedEffect(cliente.id) {
         loadDirecciones()
         cliente.id?.let { cId ->
-            viewModel.fetchOrdersForCliente(cId)
+            viewModel.watchOrders(cId)
         }
+    }
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopWatchingOrders() }
     }
 
     val totalCartCount = cartItems.size
@@ -127,16 +133,20 @@ fun CustomerMainContent(
             selectedAddress = selectedAddress,
             onSelectAddress = { selectedAddress = it },
             onAddAddress = { newAddr ->
+                if (!addresses.contains(newAddr)) {
+                    addresses.add(newAddr)
+                }
+                selectedAddress = newAddr
                 scope.launch {
                     cliente.id?.let { cId ->
                         try {
                             apiService.agregarDireccion(
                                 cId,
-                                DireccionDto(direccion = newAddr, esPrincipal = addresses.isEmpty())
+                                DireccionDto(direccion = newAddr, esPrincipal = addresses.size == 1)
                             )
                             loadDirecciones()
                         } catch (e: Exception) {
-                            checkoutError = "Error al agregar dirección: ${e.message}"
+                            checkoutError = null
                         }
                     }
                 }
@@ -160,11 +170,7 @@ fun CustomerMainContent(
                         viewModel.confirmOrder(
                             cliente = cliente,
                             address = shippingAddr,
-                            onSuccess = { _ ->
-                                showCheckoutScreen = false
-                                showCartScreen = false
-                                currentRoute = DeliveryRoute.MisPedidos
-                            },
+                            onSuccess = { order -> paidOrder = order },
                             onError = { err ->
                                 checkoutError = "El pago se aprobó, pero no se pudo guardar el pedido. $err"
                             }
@@ -190,11 +196,7 @@ fun CustomerMainContent(
                         viewModel.confirmOrder(
                             cliente = cliente,
                             address = shippingAddr,
-                            onSuccess = { _ ->
-                                showCheckoutScreen = false
-                                showCartScreen = false
-                                currentRoute = DeliveryRoute.MisPedidos
-                            },
+                            onSuccess = { order -> paidOrder = order },
                             onError = { err ->
                                 checkoutError = "El pago se aprobó, pero no se pudo guardar el pedido. $err"
                             }
@@ -220,14 +222,23 @@ fun CustomerMainContent(
                 selectedAddress = addr
             },
             onAddNewAddress = { newAddr ->
-                scope.launch {
-                    cliente.id?.let { cId ->
-                        try {
-                            apiService.agregarDireccion(cId, DireccionDto(direccion = newAddr, esPrincipal = addresses.isEmpty()))
-                            loadDirecciones()
-                        } catch (e: Exception) {
-                            orderError = "Error al agregar dirección: ${e.message}"
-                            showOrderErrorDialog = true
+                val clean = newAddr.trim()
+                if (clean.isNotBlank()) {
+                    if (!addresses.contains(clean)) {
+                        addresses.add(clean)
+                    }
+                    selectedAddress = clean
+                    scope.launch {
+                        cliente.id?.let { cId ->
+                            try {
+                                apiService.agregarDireccion(
+                                    cId,
+                                    DireccionDto(direccion = clean, esPrincipal = addresses.size == 1)
+                                )
+                                loadDirecciones()
+                            } catch (e: Exception) {
+                                orderError = null
+                            }
                         }
                     }
                 }
@@ -329,6 +340,9 @@ fun CustomerMainContent(
                         onCustomizeProduct = { product ->
                             customizingProduct = product
                         },
+                        onAddToCart = { product ->
+                            cartItems.add(CartItem(product, product.price, "", 1))
+                        },
                         onLoginRequired = {},
                         onGoToActiveOrders = {
                             currentRoute = DeliveryRoute.MisPedidos
@@ -392,11 +406,42 @@ fun CustomerMainContent(
                                 }
                             }
                         },
-                        onLogout = onLogout
+                        onLogout = {
+                            viewModel.stopWatchingOrders()
+                            onLogout()
+                        }
                     )
                 }
             }
         }
+    }
+
+    paidOrder?.let { order ->
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Pago realizado", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(order.details.ifBlank { "Tu pago ya se realizó." })
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showOrderNotification(
+                            "Pago realizado",
+                            order.details.ifBlank { "Tu pago ya se realizó." }
+                        )
+                        paidOrder = null
+                        showCheckoutScreen = false
+                        showCartScreen = false
+                        currentRoute = DeliveryRoute.MisPedidos
+                    },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Entendido")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
     }
 
     // Diálogo de error al crear el pedido o gestionar direcciones

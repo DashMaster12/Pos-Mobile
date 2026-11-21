@@ -21,6 +21,7 @@ data class CreateOrderRequest(
     val customerName: String? = null,
     val customerDocument: String? = null,
     val customerAddress: String? = null,
+    val orderType: String = "SALE",
     val details: List<OrderDetailRequest>
 )
 
