@@ -19,8 +19,8 @@ import pe.edu.upeu.data.model.OrderResponse
 import pe.edu.upeu.data.model.ProductDto
 
 class ApiService {
-    // API Gateway base URL en Render
-    private val baseUrl = "https://ale-burgers-system.onrender.com"
+    // Gateway local de Docker. 10.0.2.2 es el host visto desde el emulador Android.
+    private val baseUrl = "http://10.0.2.2:4040"
 
     val client = HttpClient {
         install(ContentNegotiation) {
