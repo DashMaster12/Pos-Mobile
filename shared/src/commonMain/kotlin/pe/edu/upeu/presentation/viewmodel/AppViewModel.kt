@@ -23,6 +23,7 @@ import pe.edu.upeu.data.model.ProductRef
 import pe.edu.upeu.data.network.ApiService
 import pe.edu.upeu.presentation.CartItem
 import pe.edu.upeu.presentation.screens.OrderModel
+import pe.edu.upeu.orderItemsPhrase
 import pe.edu.upeu.showOrderNotification
 
 class AppViewModel : ViewModel() {
@@ -104,8 +105,13 @@ class AppViewModel : ViewModel() {
                     val status = dto.status ?: "EN_PREPARACION"
                     val previous = knownStatus[id]
                     if (previous != null && previous != status) {
-                        val number = dto.orderNumber?.toLong() ?: id
-                        showOrderNotification("Pedido #$number", statusMessage(status, number))
+                        val phrase = orderItemsPhrase(
+                            dto.details.orEmpty().map { detail ->
+                                val name = detail.product?.name?.trim().orEmpty().ifBlank { "Producto" }
+                                name to (detail.quantity ?: 1)
+                            }
+                        )
+                        showOrderNotification(statusTitle(status), statusMessage(status, phrase))
                     }
                     knownStatus[id] = status
                 }
@@ -129,11 +135,22 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    private fun statusMessage(status: String, number: Long): String {
+    private fun statusTitle(status: String): String {
         return when (status) {
-            "EN_CAMINO" -> "Tu pedido #$number va en camino"
-            "ENTREGADO" -> "Tu pedido #$number fue entregado"
-            else -> "Tu pedido #$number está en preparación"
+            "EN_CAMINO" -> "Pedido en camino"
+            "ENTREGADO" -> "Pedido entregado"
+            "CANCELADO" -> "Pedido cancelado"
+            else -> "Pedido en preparación"
+        }
+    }
+
+    private fun statusMessage(status: String, itemsPhrase: String): String {
+        val pedido = if (itemsPhrase.isBlank()) "Tu pedido" else "Tu pedido de $itemsPhrase"
+        return when (status) {
+            "EN_CAMINO" -> "$pedido va en camino."
+            "ENTREGADO" -> "$pedido fue entregado."
+            "CANCELADO" -> "$pedido fue cancelado."
+            else -> "$pedido está en preparación."
         }
     }
 
