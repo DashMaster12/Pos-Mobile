@@ -14,12 +14,13 @@ import pe.edu.upeu.data.model.ClienteLoginRequest
 import pe.edu.upeu.data.model.ClienteRequest
 import pe.edu.upeu.data.model.ClienteResponse
 import pe.edu.upeu.data.model.CreateOrderRequest
+import pe.edu.upeu.data.model.DireccionDto
 import pe.edu.upeu.data.model.OrderResponse
 import pe.edu.upeu.data.model.ProductDto
 
 class ApiService {
-    // Gateway local de Docker. 10.0.2.2 es el host visto desde el emulador Android.
-    private val baseUrl = "http://10.0.2.2:4040"
+    // API Gateway base URL en Render
+    private val baseUrl = "https://ale-burgers-system.onrender.com"
 
     val client = HttpClient {
         install(ContentNegotiation) {
@@ -126,6 +127,64 @@ class ApiService {
             }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    // --- MÉTODOS PARA GESTIÓN DE DIRECCIONES ---
+
+    suspend fun getDirecciones(clienteId: Long): List<DireccionDto> {
+        return try {
+            val response = client.get("$baseUrl/clientes-service/api/clientes/$clienteId/direcciones")
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                val err = try { response.bodyAsText() } catch (e: Exception) { "N/A" }
+                println("GET Direcciones Error [${response.status.value}]: $err")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            println("GET Direcciones Exception: ${e.message}")
+            emptyList()
+        }
+    }
+
+    suspend fun agregarDireccion(clienteId: Long, direccion: DireccionDto): DireccionDto {
+        val response = client.post("$baseUrl/clientes-service/api/clientes/$clienteId/direcciones") {
+            contentType(ContentType.Application.Json)
+            setBody(direccion)
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        } else {
+            val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+            throw Exception("Servidor (${response.status.value}): $errorText")
+        }
+    }
+
+    suspend fun actualizarDireccion(clienteId: Long, direccionId: Long, direccion: DireccionDto): DireccionDto {
+        val response = client.put("$baseUrl/clientes-service/api/clientes/$clienteId/direcciones/$direccionId") {
+            contentType(ContentType.Application.Json)
+            setBody(direccion)
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        } else {
+            val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+            throw Exception("Servidor (${response.status.value}): $errorText")
+        }
+    }
+
+    suspend fun eliminarDireccion(clienteId: Long, direccionId: Long) {
+        client.delete("$baseUrl/clientes-service/api/clientes/$clienteId/direcciones/$direccionId")
+    }
+
+    suspend fun establecerPrincipal(clienteId: Long, direccionId: Long): DireccionDto {
+        val response = client.put("$baseUrl/clientes-service/api/clientes/$clienteId/direcciones/$direccionId/principal")
+        if (response.status.isSuccess()) {
+            return response.body()
+        } else {
+            val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+            throw Exception("Servidor (${response.status.value}): $errorText")
         }
     }
 }

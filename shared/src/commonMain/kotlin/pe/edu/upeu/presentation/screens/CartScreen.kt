@@ -36,7 +36,8 @@ fun CartScreen(
     onGoToLogin: () -> Unit
 ) {
     var newAddressInput by remember { mutableStateOf("") }
-    val totalPrice = cartItems.sumOf { it.product.price * it.quantity }
+    var customerDocument by remember { mutableStateOf("") }
+    val totalPrice = cartItems.sumOf { it.unitPrice * it.quantity }
 
     Scaffold(
         topBar = {
@@ -195,14 +196,22 @@ fun CartScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
+                                if (cartItem.customizationNotes.isNotBlank()) {
+                                    Text(
+                                        text = cartItem.customizationNotes,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                }
                                 Text(
-                                    text = "Precio unitario: ${cartItem.product.priceStr}",
+                                    text = "Precio unitario: $${cartItem.unitPrice}0",
                                     fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Subtotal: $${cartItem.product.price * cartItem.quantity}0",
+                                    text = "Subtotal: $${cartItem.unitPrice * cartItem.quantity}0",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.primary
@@ -296,6 +305,31 @@ fun CartScreen(
                                     Icon(Icons.Default.Add, contentDescription = "Agregar")
                                 }
                             }
+                        }
+                    }
+                }
+
+                // Sección: Comprobante y DNI (Factura / Boleta)
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(text = "Comprobante de Pago (DNI / RUC)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = "Ingresa tu número de documento para tu boleta o factura", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = customerDocument,
+                                onValueChange = { customerDocument = it },
+                                placeholder = { Text("DNI o RUC (Opcional)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp)
+                            )
                         }
                     }
                 }

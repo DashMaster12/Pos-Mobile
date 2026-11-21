@@ -3,6 +3,14 @@ package pe.edu.upeu.data.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class DireccionDto(
+    val id: Long? = null,
+    val direccion: String,
+    val referencia: String? = null,
+    val esPrincipal: Boolean? = false
+)
+
+@Serializable
 data class ClienteRequest(
     val nombreCompleto: String,
     val tipoDocumento: String,
@@ -25,5 +33,6 @@ data class ClienteResponse(
     val tipoDocumento: String? = null,
     val numeroDocumento: String? = null,
     val direccion: String? = null,
-    val correo: String? = null
+    val correo: String? = null,
+    val direcciones: List<DireccionDto>? = null
 )

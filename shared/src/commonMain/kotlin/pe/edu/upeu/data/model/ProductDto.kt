@@ -29,7 +29,7 @@ data class ProductDto(
 
     val fullImageUrl: String?
         get() {
-            val base = "http://10.0.2.2:4040/pos-venta-service"
+            val base = "https://ale-burgers-system.onrender.com/pos-venta-service"
             return when {
                 image?.id != null -> "$base/product-image/${image.id}"
                 !imageUrl.isNullOrBlank() && imageUrl.startsWith("http") -> imageUrl
