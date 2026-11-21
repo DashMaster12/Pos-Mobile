@@ -15,6 +15,7 @@ import pe.edu.upeu.data.model.DireccionDto
 import pe.edu.upeu.data.model.ProductDto
 import pe.edu.upeu.data.network.ApiService
 import pe.edu.upeu.presentation.screens.CartScreen
+import pe.edu.upeu.presentation.screens.CheckoutScreen
 import pe.edu.upeu.presentation.screens.ConfiguracionScreen
 import pe.edu.upeu.presentation.screens.MisPedidosScreen
 import pe.edu.upeu.presentation.screens.ProductCustomizationScreen
@@ -44,6 +45,7 @@ fun CustomerMainContent(
     val scope = rememberCoroutineScope()
 
     val products by viewModel.products.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val activeOrders by viewModel.activeOrders.collectAsState()
     val historyOrders by viewModel.historyOrders.collectAsState()
 
@@ -53,6 +55,8 @@ fun CustomerMainContent(
     val cartItems = viewModel.cartItems
 
     var showCartScreen by remember { mutableStateOf(false) }
+    var showCheckoutScreen by remember { mutableStateOf(false) }
+    var checkoutError by remember { mutableStateOf<String?>(null) }
     var customizingProduct by remember { mutableStateOf<ProductDto?>(null) }
     var orderError by remember { mutableStateOf<String?>(null) }
     var showOrderErrorDialog by remember { mutableStateOf(false) }
@@ -116,6 +120,90 @@ fun CustomerMainContent(
                 customizingProduct = null
             }
         )
+    } else if (showCheckoutScreen) {
+        CheckoutScreen(
+            cartItems = cartItems,
+            addresses = addresses,
+            selectedAddress = selectedAddress,
+            onSelectAddress = { selectedAddress = it },
+            onAddAddress = { newAddr ->
+                scope.launch {
+                    cliente.id?.let { cId ->
+                        try {
+                            apiService.agregarDireccion(
+                                cId,
+                                DireccionDto(direccion = newAddr, esPrincipal = addresses.isEmpty())
+                            )
+                            loadDirecciones()
+                        } catch (e: Exception) {
+                            checkoutError = "Error al agregar dirección: ${e.message}"
+                        }
+                    }
+                }
+            },
+            isLoading = isLoading,
+            errorMessage = checkoutError,
+            onBack = {
+                checkoutError = null
+                showCheckoutScreen = false
+            },
+            onPayYape = { phone, otp, amount ->
+                checkoutError = null
+                val email = cliente.correo?.takeIf { it.isNotBlank() } ?: "test_payer@example.com"
+                val shippingAddr = selectedAddress.ifBlank { addresses.firstOrNull() ?: "Dirección principal" }
+                viewModel.payWithYape(
+                    phone = phone,
+                    otp = otp,
+                    amount = amount,
+                    email = email,
+                    onSuccess = {
+                        viewModel.confirmOrder(
+                            cliente = cliente,
+                            address = shippingAddr,
+                            onSuccess = { _ ->
+                                showCheckoutScreen = false
+                                showCartScreen = false
+                                currentRoute = DeliveryRoute.MisPedidos
+                            },
+                            onError = { err ->
+                                checkoutError = "El pago se aprobó, pero no se pudo guardar el pedido. $err"
+                            }
+                        )
+                    },
+                    onError = { err -> checkoutError = err }
+                )
+            },
+            onPayCard = { number, holder, month, year, cvv, document, amount ->
+                checkoutError = null
+                val email = cliente.correo?.takeIf { it.isNotBlank() } ?: "test_payer@example.com"
+                val shippingAddr = selectedAddress.ifBlank { addresses.firstOrNull() ?: "Dirección principal" }
+                viewModel.payWithCard(
+                    cardNumber = number,
+                    cardholder = holder,
+                    expirationMonth = month,
+                    expirationYear = year,
+                    securityCode = cvv,
+                    documentNumber = document,
+                    amount = amount,
+                    email = email,
+                    onSuccess = {
+                        viewModel.confirmOrder(
+                            cliente = cliente,
+                            address = shippingAddr,
+                            onSuccess = { _ ->
+                                showCheckoutScreen = false
+                                showCartScreen = false
+                                currentRoute = DeliveryRoute.MisPedidos
+                            },
+                            onError = { err ->
+                                checkoutError = "El pago se aprobó, pero no se pudo guardar el pedido. $err"
+                            }
+                        )
+                    },
+                    onError = { err -> checkoutError = err }
+                )
+            }
+        )
     } else if (showCartScreen) {
         CartScreen(
             isLoggedIn = true,
@@ -148,19 +236,8 @@ fun CustomerMainContent(
                 showCartScreen = false
             },
             onConfirmOrder = {
-                val shippingAddr = if (selectedAddress.isNotBlank()) selectedAddress else (addresses.firstOrNull() ?: "Dirección principal")
-                viewModel.confirmOrder(
-                    cliente = cliente,
-                    address = shippingAddr,
-                    onSuccess = { _ ->
-                        showCartScreen = false
-                        currentRoute = DeliveryRoute.MisPedidos
-                    },
-                    onError = { err ->
-                        orderError = err
-                        showOrderErrorDialog = true
-                    }
-                )
+                checkoutError = null
+                showCheckoutScreen = true
             },
             onGoToLogin = {}
         )
