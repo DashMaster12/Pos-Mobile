@@ -32,7 +32,7 @@ fun CartScreen(
     onSelectAddress: (String) -> Unit,
     onAddNewAddress: (String) -> Unit,
     onBackClick: () -> Unit,
-    onConfirmOrder: () -> Unit,
+    onConfirmOrder: (pendingAddress: String) -> Unit,
     onGoToLogin: () -> Unit
 ) {
     var newAddressInput by remember { mutableStateOf("") }
@@ -87,7 +87,7 @@ fun CartScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         DeliveryButton(
                             text = "Confirmar Pedido",
-                            onClick = onConfirmOrder,
+                            onClick = { onConfirmOrder(newAddressInput.trim()) },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

@@ -96,6 +96,31 @@ fun CustomerMainContent(
         }
     }
 
+    fun saveDeliveryAddress(raw: String) {
+        val clean = raw.trim()
+        if (clean.isBlank()) return
+        val existing = addresses.firstOrNull { it.equals(clean, ignoreCase = true) }
+        if (existing != null) {
+            selectedAddress = existing
+            return
+        }
+        addresses.add(clean)
+        selectedAddress = clean
+        scope.launch {
+            cliente.id?.let { cId ->
+                try {
+                    apiService.agregarDireccion(
+                        cId,
+                        DireccionDto(direccion = clean, esPrincipal = addresses.size == 1)
+                    )
+                    loadDirecciones()
+                } catch (e: Exception) {
+                    orderError = null
+                }
+            }
+        }
+    }
+
     // Inicializar direcciones y órdenes del cliente
     LaunchedEffect(cliente.id) {
         loadDirecciones()
@@ -133,23 +158,7 @@ fun CustomerMainContent(
             selectedAddress = selectedAddress,
             onSelectAddress = { selectedAddress = it },
             onAddAddress = { newAddr ->
-                if (!addresses.contains(newAddr)) {
-                    addresses.add(newAddr)
-                }
-                selectedAddress = newAddr
-                scope.launch {
-                    cliente.id?.let { cId ->
-                        try {
-                            apiService.agregarDireccion(
-                                cId,
-                                DireccionDto(direccion = newAddr, esPrincipal = addresses.size == 1)
-                            )
-                            loadDirecciones()
-                        } catch (e: Exception) {
-                            checkoutError = null
-                        }
-                    }
-                }
+                saveDeliveryAddress(newAddr)
             },
             isLoading = isLoading,
             errorMessage = checkoutError,
@@ -222,33 +231,25 @@ fun CustomerMainContent(
                 selectedAddress = addr
             },
             onAddNewAddress = { newAddr ->
-                val clean = newAddr.trim()
-                if (clean.isNotBlank()) {
-                    if (!addresses.contains(clean)) {
-                        addresses.add(clean)
-                    }
-                    selectedAddress = clean
-                    scope.launch {
-                        cliente.id?.let { cId ->
-                            try {
-                                apiService.agregarDireccion(
-                                    cId,
-                                    DireccionDto(direccion = clean, esPrincipal = addresses.size == 1)
-                                )
-                                loadDirecciones()
-                            } catch (e: Exception) {
-                                orderError = null
-                            }
-                        }
-                    }
-                }
+                saveDeliveryAddress(newAddr)
             },
             onBackClick = {
                 showCartScreen = false
             },
-            onConfirmOrder = {
-                checkoutError = null
-                showCheckoutScreen = true
+            onConfirmOrder = { pending ->
+                val typed = pending.trim()
+                if (typed.isNotBlank()) {
+                    saveDeliveryAddress(typed)
+                } else if (selectedAddress.isBlank() && addresses.isNotEmpty()) {
+                    selectedAddress = addresses.first()
+                }
+                if (selectedAddress.isBlank()) {
+                    orderError = "Agrega la dirección de entrega en el carrito."
+                    showOrderErrorDialog = true
+                } else {
+                    checkoutError = null
+                    showCheckoutScreen = true
+                }
             },
             onGoToLogin = {}
         )
