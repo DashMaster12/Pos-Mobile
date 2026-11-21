@@ -23,6 +23,7 @@ import pe.edu.upeu.presentation.screens.TiendaScreen
 import pe.edu.upeu.presentation.screens.OrderModel
 import pe.edu.upeu.presentation.screens.UsuarioScreen
 import pe.edu.upeu.presentation.viewmodel.AppViewModel
+import pe.edu.upeu.orderItemsPhrase
 import pe.edu.upeu.showOrderNotification
 
 class CartItem(
@@ -462,14 +463,7 @@ fun CustomerMainContent(
 }
 
 private fun paymentMessage(details: String): String {
-    if (details.isBlank()) return "Tu pago ya se realizó."
-    val parts = details.split(", ").map { part ->
-        val pieces = part.trim().split("x ", limit = 2)
-        if (pieces.size == 2 && pieces[0].all { it.isDigit() }) {
-            "${pieces[1]}, cantidad ${pieces[0]}"
-        } else {
-            part.trim()
-        }
-    }
-    return "Pagaste tu pedido de ${parts.joinToString(" y ")}."
+    val phrase = orderItemsPhrase(details)
+    if (phrase.isBlank()) return "Tu pago ya se realizó."
+    return "Pagaste tu pedido de $phrase."
 }
