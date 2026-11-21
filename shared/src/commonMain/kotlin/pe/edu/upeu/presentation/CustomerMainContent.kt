@@ -417,19 +417,17 @@ fun CustomerMainContent(
     }
 
     paidOrder?.let { order ->
+        val paidText = paymentMessage(order.details)
         AlertDialog(
             onDismissRequest = { },
             title = { Text("Pago realizado", fontWeight = FontWeight.Bold) },
             text = {
-                Text(order.details.ifBlank { "Tu pago ya se realizó." })
+                Text(paidText)
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        showOrderNotification(
-                            "Pago realizado",
-                            order.details.ifBlank { "Tu pago ya se realizó." }
-                        )
+                        showOrderNotification("Pago realizado", paidText)
                         paidOrder = null
                         showCheckoutScreen = false
                         showCartScreen = false
@@ -460,4 +458,17 @@ fun CustomerMainContent(
             }
         )
     }
+}
+
+private fun paymentMessage(details: String): String {
+    if (details.isBlank()) return "Tu pago ya se realizó."
+    val parts = details.split(", ").map { part ->
+        val pieces = part.trim().split("x ", limit = 2)
+        if (pieces.size == 2 && pieces[0].all { it.isDigit() }) {
+            "${pieces[1]}, cantidad ${pieces[0]}"
+        } else {
+            part.trim()
+        }
+    }
+    return "Pagaste tu pedido de ${parts.joinToString(" y ")}."
 }
