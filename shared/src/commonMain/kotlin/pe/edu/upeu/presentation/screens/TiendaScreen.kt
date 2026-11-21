@@ -3,21 +3,25 @@ package pe.edu.upeu.presentation.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,44 +31,133 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import pe.edu.upeu.data.model.ProductDto
 import pe.edu.upeu.presentation.components.DeliveryButton
-import pe.edu.upeu.presentation.components.ProductDetailDialog
 
 @Composable
 fun TiendaScreen(
     isLoggedIn: Boolean = true,
+    userAddress: String = "Dirección principal",
     products: List<ProductDto> = emptyList(),
     activeOrders: List<OrderModel> = emptyList(),
     isLoading: Boolean = false,
     errorMessage: String? = null,
-    onAddToCart: (ProductDto) -> Unit = {},
+    onCustomizeProduct: (ProductDto) -> Unit = {},
     onLoginRequired: () -> Unit = {},
     onGoToActiveOrders: () -> Unit = {},
     onRetry: () -> Unit = {}
 ) {
-    var selectedProduct by remember { mutableStateOf<ProductDto?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Todos") }
+
+    // Categorías reales de la base de datos (Hamburguesas, Bebidas, Pollo a la Brasa)
+    val categories = listOf(
+        "Hamburguesas",
+        "Bebidas",
+        "Pollo a la Brasa"
+    )
+
+    // Filtrar productos por búsqueda y categoría real de la BD (Excluyendo la categoría "Extras")
+    val filteredProducts = products.filter { product ->
+        val isExtrasCategory = product.category?.name.equals("Extras", ignoreCase = true)
+        if (isExtrasCategory) return@filter false
+
+        val matchesSearch = product.name.contains(searchQuery, ignoreCase = true) ||
+                product.description.contains(searchQuery, ignoreCase = true)
+        val matchesCategory = if (selectedCategory == "Todos") true else {
+            product.category?.name.equals(selectedCategory, ignoreCase = true) ||
+                    product.name.contains(selectedCategory, ignoreCase = true)
+        }
+        matchesSearch && matchesCategory
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(
-            text = "¡Menú Alé Burgers!",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
+        // Cabecera superior: Dirección real de la BD del usuario y Soporte
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Dirección de entrega",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = if (userAddress.isNotBlank()) userAddress else "Dirección principal",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 260.dp)
+                        )
+                    }
+                }
+            }
+
+            IconButton(onClick = {}) {
+                Icon(
+                    imageVector = Icons.Default.Phone,
+                    contentDescription = "Soporte",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Barra de Búsqueda
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text("Busca \"Pollo a la Brasa\" o hamburguesa...") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Buscar",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            shape = RoundedCornerShape(24.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent
+            ),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "Catálogo desde el servidor local",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
-        // Banner destacado si hay pedidos activos en curso
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Banner destacado de pedidos activos
         if (isLoggedIn && activeOrders.isNotEmpty()) {
             val latestActive = activeOrders.first()
-            Spacer(modifier = Modifier.height(12.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 shape = RoundedCornerShape(16.dp),
@@ -87,7 +180,7 @@ fun TiendaScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        val activeText = if (latestActive.rawStatus.contains("CAMINO", ignoreCase = true) || latestActive.status.contains("camino", ignoreCase = true)) {
+                        val activeText = if (latestActive.rawStatus.contains("CAMINO", ignoreCase = true)) {
                             "🚚 ¡El repartidor va en camino a tu dirección!"
                         } else {
                             "🛵 Tu pedido se está preparando en cocina..."
@@ -108,9 +201,47 @@ fun TiendaScreen(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Categorías reales de la Base de Datos
+        Text(
+            text = "Categorías del Menú",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                CategoryChipCard(
+                    title = "Todos",
+                    isSelected = selectedCategory == "Todos",
+                    onClick = { selectedCategory = "Todos" }
+                )
+            }
+            items(categories) { cat ->
+                CategoryChipCard(
+                    title = cat,
+                    isSelected = selectedCategory == cat,
+                    onClick = { selectedCategory = cat }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = if (selectedCategory == "Todos") "Platos y Productos Disponibles" else "Categoría: $selectedCategory",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(10.dp))
 
         when {
             isLoading -> {
@@ -122,14 +253,14 @@ fun TiendaScreen(
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Conectando con Render (despertando servidor)...",
+                            text = "Cargando catálogo desde el servidor...",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-            products.isEmpty() -> {
+            filteredProducts.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -139,21 +270,14 @@ fun TiendaScreen(
                         modifier = Modifier.padding(24.dp)
                     ) {
                         Text(
-                            text = errorMessage ?: "No se encontraron productos en el servidor.",
+                            text = errorMessage ?: "No se encontraron productos para esta categoría o búsqueda.",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Nota: Asegúrate de que el endpoint GET /product en tu backend sea público (permitAll) y no requiera rol de ADMIN/CAJERO.",
-                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         DeliveryButton(
-                            text = "Reintentar Conexión",
+                            text = "Recargar Catálogo",
                             onClick = onRetry,
                             modifier = Modifier.width(200.dp)
                         )
@@ -168,12 +292,14 @@ fun TiendaScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(products) { product ->
+                    items(filteredProducts) { product ->
                         Card(
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .shadow(4.dp, RoundedCornerShape(16.dp))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -188,14 +314,14 @@ fun TiendaScreen(
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(90.dp)
+                                            .height(100.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                     )
                                 } else {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(90.dp)
+                                            .height(100.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(MaterialTheme.colorScheme.primaryContainer),
                                         contentAlignment = Alignment.Center
@@ -243,8 +369,14 @@ fun TiendaScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 DeliveryButton(
-                                    text = "Ver",
-                                    onClick = { selectedProduct = product },
+                                    text = "Personalizar",
+                                    onClick = {
+                                        if (isLoggedIn) {
+                                            onCustomizeProduct(product)
+                                        } else {
+                                            onLoginRequired()
+                                        }
+                                    },
                                     modifier = Modifier.fillMaxWidth().height(38.dp)
                                 )
                             }
@@ -253,19 +385,34 @@ fun TiendaScreen(
                 }
             }
         }
+    }
+}
 
-        selectedProduct?.let { product ->
-            ProductDetailDialog(
-                product = product,
-                onDismiss = { selectedProduct = null },
-                onAddToCart = {
-                    if (isLoggedIn) {
-                        onAddToCart(product)
-                    } else {
-                        onLoginRequired()
-                    }
-                    selectedProduct = null
-                }
+@Composable
+fun CategoryChipCard(
+    title: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = backgroundColor,
+        shadowElevation = 3.dp,
+        modifier = Modifier.height(44.dp)
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = contentColor
             )
         }
     }

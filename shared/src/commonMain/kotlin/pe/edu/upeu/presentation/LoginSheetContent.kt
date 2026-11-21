@@ -38,7 +38,7 @@ fun LoginSheetContent(
         OutlinedTextField(
             value = identifier,
             onValueChange = { identifier = it },
-            label = { Text("Correo o N° de Documento") },
+            label = { Text("Correo Electrónico") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -55,20 +55,8 @@ fun LoginSheetContent(
         )
 
         if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Surface (
-                color = MaterialTheme.colorScheme.errorContainer,
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth()
-            ){
-                Text(
-                    text = errorMessage,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = errorMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
         }
 
         Spacer(modifier = Modifier.height(20.dp))

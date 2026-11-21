@@ -98,7 +98,8 @@ class AppViewModel : ViewModel() {
             val pName = detail.product?.name ?: "Producto"
             val qty = detail.quantity ?: 1
             val price = detail.unitPrice ?: 0.0
-            "${qty}x $pName ($${price})"
+            val notes = if (!detail.kitchenNotes.isNullOrBlank()) " (${detail.kitchenNotes})" else ""
+            "${qty}x $pName$notes ($${price})"
         } ?: emptyList()
 
         val summaryText = itemsSummary.joinToString(", ")
@@ -141,7 +142,7 @@ class AppViewModel : ViewModel() {
                 val response = apiService.registerCliente(request)
                 onSuccess(response)
             } catch (e: Exception) {
-                onError("No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.")
+                onError("Error al registrar cliente: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
@@ -212,14 +213,16 @@ class AppViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             _isLoading.value = true
-            val subtotal = cartItems.sumOf { it.product.price * it.quantity }
+            val subtotal = cartItems.sumOf { it.unitPrice * it.quantity }
             val deliveryFee = 5.0
             val total = subtotal + deliveryFee
 
             val detailsReq = cartItems.map {
                 OrderDetailRequest(
                     product = ProductRef(id = it.product.id),
-                    quantity = it.quantity
+                    quantity = it.quantity,
+                    unitPrice = it.unitPrice,
+                    kitchenNotes = it.customizationNotes
                 )
             }
 
@@ -237,7 +240,10 @@ class AppViewModel : ViewModel() {
                 val response = apiService.createOrder(request)
                 val code = response.orderNumber?.let { "#$it" } ?: "#${response.id ?: 0}"
                 
-                val itemsSummaryList = cartItems.map { "${it.quantity}x ${it.product.name} ($${it.product.price})" }
+                val itemsSummaryList = cartItems.map { 
+                    val notes = if (it.customizationNotes.isNotBlank()) " (${it.customizationNotes})" else ""
+                    "${it.quantity}x ${it.product.name}$notes ($${it.unitPrice})"
+                }
                 val detailsText = cartItems.joinToString(", ") { "${it.quantity}x ${it.product.name}" }
 
                 val newOrder = OrderModel(

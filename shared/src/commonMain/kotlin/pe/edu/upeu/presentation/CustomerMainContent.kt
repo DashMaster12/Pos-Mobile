@@ -9,24 +9,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.launch
 import pe.edu.upeu.data.model.ClienteResponse
+import pe.edu.upeu.data.model.DireccionDto
 import pe.edu.upeu.data.model.ProductDto
+import pe.edu.upeu.data.network.ApiService
 import pe.edu.upeu.presentation.screens.CartScreen
 import pe.edu.upeu.presentation.screens.ConfiguracionScreen
 import pe.edu.upeu.presentation.screens.MisPedidosScreen
+import pe.edu.upeu.presentation.screens.ProductCustomizationScreen
 import pe.edu.upeu.presentation.screens.TiendaScreen
 import pe.edu.upeu.presentation.screens.UsuarioScreen
 import pe.edu.upeu.presentation.viewmodel.AppViewModel
-import kotlinx.coroutines.delay
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
-
-
-
 
 class CartItem(
     val product: ProductDto,
+    val unitPrice: Double,
+    val customizationNotes: String,
     initialQuantity: Int
 ) {
     var quantity by mutableIntStateOf(initialQuantity)
@@ -35,38 +34,68 @@ class CartItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerMainContent(
+    cliente: ClienteResponse,
     onLogout: () -> Unit,
     darkModeEnabled: Boolean,
     onDarkModeChange: (Boolean) -> Unit
 ) {
     val viewModel = remember { AppViewModel() }
+    val apiService = remember { ApiService() }
+    val scope = rememberCoroutineScope()
+
     val products by viewModel.products.collectAsState()
     val activeOrders by viewModel.activeOrders.collectAsState()
     val historyOrders by viewModel.historyOrders.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
 
     var currentRoute by remember { mutableStateOf<DeliveryRoute>(DeliveryRoute.Tienda) }
-
-    // Estado global de sesión compartido (inicia en false)
-    var isLoggedIn by remember { mutableStateOf(false) }
-    var loggedInCliente by remember { mutableStateOf<ClienteResponse?>(null) }
 
     // Estado global del carrito y pantallas
     val cartItems = viewModel.cartItems
 
     var showCartScreen by remember { mutableStateOf(false) }
-    var showLoginRequiredDialog by remember { mutableStateOf(false) }
-    var showLoginDialog by remember { mutableStateOf(false) }
-    var showRegisterDialog by remember { mutableStateOf(false) }
-    var loginError by remember { mutableStateOf<String?>(null) }
-    var loginSuccessName by remember { mutableStateOf<String?>(null) }
-    var registerSuccessName by remember { mutableStateOf<String?>(null) }
-    var registrationError by remember { mutableStateOf<String?>(null) }
+    var customizingProduct by remember { mutableStateOf<ProductDto?>(null) }
     var orderError by remember { mutableStateOf<String?>(null) }
     var showOrderErrorDialog by remember { mutableStateOf(false) }
 
     val addresses = remember { mutableStateListOf<String>() }
+    val direccionesState = remember { mutableStateListOf<DireccionDto>() }
     var selectedAddress by remember { mutableStateOf("") }
+
+    // Función para cargar direcciones 100% dinámicas desde el backend
+    fun loadDirecciones() {
+        cliente.id?.let { cId ->
+            scope.launch {
+                val list = try {
+                    apiService.getDirecciones(cId)
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                direccionesState.clear()
+                direccionesState.addAll(list)
+                
+                addresses.clear()
+                list.forEach { d ->
+                    addresses.add(d.direccion)
+                    if (d.esPrincipal == true) {
+                        selectedAddress = d.direccion
+                    }
+                }
+
+                if (selectedAddress.isBlank() && addresses.isNotEmpty()) {
+                    selectedAddress = addresses[0]
+                }
+            }
+        }
+    }
+
+    // Inicializar direcciones y órdenes del cliente
+    LaunchedEffect(cliente.id) {
+        loadDirecciones()
+        cliente.id?.let { cId ->
+            viewModel.fetchOrdersForCliente(cId)
+        }
+    }
 
     val totalCartCount = cartItems.size
 
@@ -77,18 +106,19 @@ fun CustomerMainContent(
         DeliveryRoute.Usuario
     )
 
-    // Cargar órdenes cuando haya inicio de sesión activo
-    LaunchedEffect(isLoggedIn, loggedInCliente?.id) {
-        if (isLoggedIn) {
-            loggedInCliente?.id?.let { cId ->
-                viewModel.fetchOrdersForCliente(cId)
+    if (customizingProduct != null) {
+        ProductCustomizationScreen(
+            product = customizingProduct!!,
+            allProducts = products,
+            onBackClick = { customizingProduct = null },
+            onAddToCart = { customPrice, notes ->
+                cartItems.add(CartItem(customizingProduct!!, customPrice, notes, 1))
+                customizingProduct = null
             }
-        }
-    }
-
-    if (showCartScreen) {
+        )
+    } else if (showCartScreen) {
         CartScreen(
-            isLoggedIn = isLoggedIn,
+            isLoggedIn = true,
             cartItems = cartItems,
             onUpdateQuantity = { item, newQty ->
                 item.quantity = newQty
@@ -102,18 +132,25 @@ fun CustomerMainContent(
                 selectedAddress = addr
             },
             onAddNewAddress = { newAddr ->
-                if (!addresses.contains(newAddr)) {
-                    addresses.add(newAddr)
+                scope.launch {
+                    cliente.id?.let { cId ->
+                        try {
+                            apiService.agregarDireccion(cId, DireccionDto(direccion = newAddr, esPrincipal = addresses.isEmpty()))
+                            loadDirecciones()
+                        } catch (e: Exception) {
+                            orderError = "Error al agregar dirección: ${e.message}"
+                            showOrderErrorDialog = true
+                        }
+                    }
                 }
-                selectedAddress = newAddr
             },
             onBackClick = {
                 showCartScreen = false
             },
             onConfirmOrder = {
-                val shippingAddr = if (selectedAddress.isNotBlank()) selectedAddress else "Dirección principal"
+                val shippingAddr = if (selectedAddress.isNotBlank()) selectedAddress else (addresses.firstOrNull() ?: "Dirección principal")
                 viewModel.confirmOrder(
-                    cliente = loggedInCliente,
+                    cliente = cliente,
                     address = shippingAddr,
                     onSuccess = { _ ->
                         showCartScreen = false
@@ -125,10 +162,7 @@ fun CustomerMainContent(
                     }
                 )
             },
-            onGoToLogin = {
-                showCartScreen = false
-                showLoginDialog = true
-            }
+            onGoToLogin = {}
         )
     } else {
         Scaffold(
@@ -185,8 +219,8 @@ fun CustomerMainContent(
                             selected = currentRoute == screen,
                             onClick = { 
                                 currentRoute = screen 
-                                if (screen is DeliveryRoute.MisPedidos && isLoggedIn) {
-                                    loggedInCliente?.id?.let { cId ->
+                                if (screen is DeliveryRoute.MisPedidos) {
+                                    cliente.id?.let { cId ->
                                         viewModel.fetchOrdersForCliente(cId)
                                     }
                                 }
@@ -211,118 +245,89 @@ fun CustomerMainContent(
             ) {
                 when (currentRoute) {
                     is DeliveryRoute.Tienda -> TiendaScreen(
-                        isLoggedIn = isLoggedIn,
+                        isLoggedIn = true,
+                        userAddress = if (selectedAddress.isNotBlank()) selectedAddress else (addresses.firstOrNull() ?: "Selecciona una dirección"),
                         products = products,
                         activeOrders = activeOrders,
-                        onAddToCart = { product ->
-                            val existing = cartItems.find { it.product.id == product.id }
-                            if (existing != null) {
-                                existing.quantity++
-                            } else {
-                                cartItems.add(CartItem(product, 1))
-                            }
+                        onCustomizeProduct = { product ->
+                            customizingProduct = product
                         },
-                        onLoginRequired = {
-                            showLoginRequiredDialog = true
-                        },
+                        onLoginRequired = {},
                         onGoToActiveOrders = {
                             currentRoute = DeliveryRoute.MisPedidos
                         }
                     )
                     is DeliveryRoute.MisPedidos -> MisPedidosScreen(
-                        isLoggedIn = isLoggedIn,
+                        isLoggedIn = true,
                         activeOrders = activeOrders,
                         historyOrders = historyOrders,
                         onRefresh = {
-                            loggedInCliente?.id?.let { cId ->
+                            cliente.id?.let { cId ->
                                 viewModel.fetchOrdersForCliente(cId)
                             }
                         },
-                        onGoToLogin = {
-                            showLoginDialog = true
-                        }
+                        onGoToLogin = {}
                     )
                     is DeliveryRoute.Configuracion -> ConfiguracionScreen(
                         darkModeEnabled = darkModeEnabled,
                         onDarkModeChange = onDarkModeChange
                     )
                     is DeliveryRoute.Usuario -> UsuarioScreen(
-                        isLoggedInExternal = isLoggedIn,
-                        cliente = loggedInCliente,
-                        addresses = addresses,
-                        onSessionStateChanged = { newStatus ->
-                            if (newStatus) {
-                                showLoginDialog = true
-                            } else {
-                                isLoggedIn = false
-                                loggedInCliente = null
-                                addresses.clear()
+                        isLoggedInExternal = true,
+                        cliente = cliente,
+                        direcciones = direccionesState,
+                        onAddDireccion = { dir, ref, principal ->
+                            scope.launch {
+                                cliente.id?.let { cId ->
+                                    try {
+                                        apiService.agregarDireccion(cId, DireccionDto(direccion = dir, referencia = ref, esPrincipal = principal))
+                                        loadDirecciones()
+                                    } catch (e: Exception) {
+                                        orderError = "Error al agregar dirección: ${e.message}"
+                                        showOrderErrorDialog = true
+                                    }
+                                }
                             }
                         },
-                        onRegisterClick = {
-                            showRegisterDialog = true
-                        },
-                        onUpdateAddress = { newAddr ->
-                            val currentClient = loggedInCliente
-                            if (currentClient != null) {
-                                viewModel.updateClienteAddress(
-                                    cliente = currentClient,
-                                    newAddress = newAddr,
-                                    onSuccess = { updated ->
-                                        loggedInCliente = updated
-                                        if (!addresses.contains(newAddr)) {
-                                            addresses.add(newAddr)
-                                        }
-                                        selectedAddress = newAddr
-                                    },
-                                    onError = { _ -> }
-                                )
+                        onUpdateDireccion = { id, dir, ref, principal ->
+                            scope.launch {
+                                cliente.id?.let { cId ->
+                                    try {
+                                        apiService.actualizarDireccion(cId, id, DireccionDto(id = id, direccion = dir, referencia = ref, esPrincipal = principal))
+                                        loadDirecciones()
+                                    } catch (e: Exception) {
+                                        orderError = "Error al actualizar dirección: ${e.message}"
+                                        showOrderErrorDialog = true
+                                    }
+                                }
                             }
                         },
-                        onLogout = {
-                            isLoggedIn = false
-                            loggedInCliente = null
-                            addresses.clear()
-                            onLogout()
-                        }
+                        onDeleteDireccion = { id ->
+                            scope.launch {
+                                cliente.id?.let { cId ->
+                                    try {
+                                        apiService.eliminarDireccion(cId, id)
+                                        loadDirecciones()
+                                    } catch (e: Exception) {
+                                        orderError = "Error al eliminar dirección: ${e.message}"
+                                        showOrderErrorDialog = true
+                                    }
+                                }
+                            }
+                        },
+                        onLogout = onLogout
                     )
                 }
             }
         }
     }
 
-    // Diálogo de aviso cuando usuario invitado intenta agregar productos
-    if (showLoginRequiredDialog) {
-        AlertDialog(
-            onDismissRequest = { showLoginRequiredDialog = false },
-            title = { Text("Inicio de sesión requerido", fontWeight = FontWeight.Bold) },
-            text = { Text("Debes iniciar sesión para agregar productos a tu carrito de compras.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showLoginRequiredDialog = false
-                        showLoginDialog = true
-                    },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Ir a Iniciar Sesión")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLoginRequiredDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-
-
-    // Diálogo de error al crear el pedido (ej. caja cerrada)
+    // Diálogo de error al crear el pedido o gestionar direcciones
     if (showOrderErrorDialog) {
         AlertDialog(
             onDismissRequest = { showOrderErrorDialog = false },
-            title = { Text("No se pudo procesar el pedido", fontWeight = FontWeight.Bold) },
-            text = { Text(orderError ?: "Ocurrió un error al registrar tu pedido en el sistema.") },
+            title = { Text("Aviso del Sistema", fontWeight = FontWeight.Bold) },
+            text = { Text(orderError ?: "Ocurrió un error en la operación.") },
             confirmButton = {
                 Button(
                     onClick = { showOrderErrorDialog = false },
@@ -332,162 +337,5 @@ fun CustomerMainContent(
                 }
             }
         )
-    }
-
-    if (loginError != null) {
-        AlertDialog(
-            onDismissRequest = { loginError = null },
-            icon = {
-                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-            },
-            title = { Text("No se pudo iniciar sesión", fontWeight = FontWeight.Bold) },
-            text = { Text(loginError ?: "") },
-            confirmButton = {
-                Button(onClick = { loginError = null }, shape = RoundedCornerShape(8.dp)) {
-                    Text("Entendido")
-                }
-            },
-            shape = RoundedCornerShape(20.dp)
-        )
-    }
-
-    if (loginSuccessName != null) {
-        LaunchedEffect(loginSuccessName) {
-            delay(3000)
-            loginSuccessName = null
-        }
-        AlertDialog(
-            onDismissRequest = { },
-            icon = {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            },
-            title = { Text("Sesión iniciada", fontWeight = FontWeight.Bold) },
-            text = { Text("Hola, $loginSuccessName. Ya puedes continuar con tu pedido.") },
-            confirmButton = {},
-            shape = RoundedCornerShape(20.dp)
-        )
-    }
-
-    if (registrationError != null) {
-        AlertDialog(
-            onDismissRequest = { registrationError = null },
-            icon = {
-                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-            },
-            title = { Text("No se pudo crear la cuenta", fontWeight = FontWeight.Bold) },
-            text = { Text(registrationError ?: "") },
-            confirmButton = {
-                Button(onClick = { registrationError = null }, shape = RoundedCornerShape(8.dp)) {
-                    Text("Entendido")
-                }
-            },
-            shape = RoundedCornerShape(20.dp)
-        )
-    }
-
-    if (registerSuccessName != null) {
-        LaunchedEffect(registerSuccessName) {
-            delay(3000)
-            registerSuccessName = null
-        }
-        AlertDialog(
-            onDismissRequest = { },
-            icon = {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            },
-            title = { Text("Cuenta creada", fontWeight = FontWeight.Bold) },
-            text = { Text("Hola, $registerSuccessName. Tu cuenta ya está lista.") },
-            confirmButton = {},
-            shape = RoundedCornerShape(20.dp)
-        )
-    }
-
-    // Diálogo / Formulario de Inicio de Sesión Real con /api/clientes/login
-    if (showLoginDialog) {
-        Dialog(onDismissRequest = { showLoginDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
-            ) {
-                LoginSheetContent(
-                    onLoginClick = { identifier, password ->
-                        loginError = null
-                        viewModel.loginCliente(
-                            identifier = identifier,
-                            password = password,
-                            onSuccess = { cliente ->
-                                addresses.clear()
-                                if (!cliente.direccion.isNullOrBlank()) {
-                                    addresses.add(cliente.direccion)
-                                    selectedAddress = cliente.direccion
-                                }
-                                loggedInCliente = cliente
-                                isLoggedIn = true
-                                loginSuccessName = cliente.nombreCompleto ?: "Cliente"
-                                showLoginDialog = false
-                                currentRoute = DeliveryRoute.Tienda
-                            },
-                            onError = { err ->
-                                loginError = err
-                            }
-                        )
-                    },
-                    onGoToRegister = {
-                        showLoginDialog = false
-                        showRegisterDialog = true
-                    },
-                    isLoading = isLoading
-                )
-            }
-        }
-    }
-
-    // Diálogo / Sheet de Registro de Cliente
-    if (showRegisterDialog) {
-        Dialog(onDismissRequest = { showRegisterDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
-            ) {
-                RegisterSheetContent(
-                    onRegisterClick = { nombreCompleto, tipoDocumento, numeroDocumento, direccion, correo, password ->
-                        registrationError = null
-                        viewModel.registerCliente(
-                            nombreCompleto = nombreCompleto,
-                            tipoDocumento = tipoDocumento,
-                            numeroDocumento = numeroDocumento,
-                            direccion = direccion,
-                            correo = correo,
-                            password = password,
-                            onSuccess = { cliente ->
-                                addresses.clear()
-                                if (!cliente.direccion.isNullOrBlank()) {
-                                    addresses.add(cliente.direccion)
-                                    selectedAddress = cliente.direccion
-                                }
-                                loggedInCliente = cliente
-                                isLoggedIn = true
-                                registerSuccessName = cliente.nombreCompleto ?: "Cliente"
-                                showRegisterDialog = false
-                                currentRoute = DeliveryRoute.Tienda
-                            },
-                            onError = { err ->
-                                registrationError = err
-                            }
-                        )
-                    },
-                    onGoToLogin = {
-                        showRegisterDialog = false
-                        showLoginDialog = true
-                    },
-                    isLoading = isLoading,
-                    errorMessage = registrationError
-                )
-            }
-        }
     }
 }

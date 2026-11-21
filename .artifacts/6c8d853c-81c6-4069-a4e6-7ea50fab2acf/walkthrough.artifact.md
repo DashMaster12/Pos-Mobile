@@ -1,32 +1,25 @@
-# Walkthrough - Seguimiento de Estados de Pedido e Historial Segregado
+# Walkthrough - Gestión Completa de Múltiples Direcciones y Formulario Validado
 
-He completado la implementación del flujo de pedidos según tu especificación exacta. La aplicación móvil ahora no envía `orderType`, consulta las órdenes del cliente en tiempo real (`GET /pos-venta-service/order/cliente/{clienteId}`), muestra un **Banner Destacado de Pedido Activo** en la pantalla principal (Home), y segrega los pedidos en dos pestañas claras en la pantalla **Mis Pedidos** ("En Curso" e "Historial").
+He integrado la gestión completa de múltiples direcciones en la app móvil y provisto el backend para actualización de direcciones.
 
 ## Cambios Realizados
 
-### 1. DTOs y Red (`OrderDto.kt`, `ApiService.kt`)
-- **Remoción de `orderType`**: Se eliminó del cuerpo de la petición.
-- **Campos Enriquecidos**: `CreateOrderRequest` envía ahora `clienteId`, `customerName`, `customerDocument` y `customerAddress`.
-- **Consulta de Pedidos por Cliente**: Implementada en `ApiService.kt` (`GET /pos-venta-service/order/cliente/{clienteId}`).
+### 1. Modelos y Red (`AuthDto.kt` y `ApiService.kt`)
+- **`DireccionDto`**: Creado para serializar y deserializar direcciones (`id`, `direccion`, `referencia`, `esPrincipal`).
+- **`ClienteResponse`**: Actualizado para incluir la lista de direcciones del cliente.
+- **`ApiService`**: Incorporados métodos para listar, agregar, actualizar, eliminar y marcar direcciones como principales.
 
-### 2. Lógica de Estados en ViewModel (`AppViewModel.kt`)
-- Carga dinámica de los pedidos del cliente autenticado mediante `fetchOrdersForCliente(clienteId)`.
-- **Filtro y Segregación**:
-  - **Pedidos Activos**: `EN_PREPARACION` ("En preparación 🛵") y `EN_CAMINO` ("En camino 🚚").
-  - **Historial de Pedidos**: `ENTREGADO` ("Entregado ✅") y `CANCELADO` ("Cancelado ❌").
+### 2. Formulario Bonito y Validado en Perfil (`UsuarioScreen.kt`)
+- **Listado de Direcciones**: Tarjetas limpias que muestran las direcciones guardadas e identifican visualmente cuál es la dirección principal.
+- **Formulario Modal de Agregar / Editar**: Diálogo flotante con validación en tiempo real (campo de dirección obligatorio, referencia opcional y checkbox de dirección principal).
+- **Acciones**: Botones para editar, eliminar y agregar nuevas direcciones con sincronización en tiempo real con el servidor.
 
-### 3. Pantalla Principal / Home (`TiendaScreen.kt`)
-- **Banner de Pedido Activo**: Si el cliente tiene un pedido en curso, aparece una tarjeta azul destacada en la parte superior del menú mostrando el número de orden y mensaje dinámico (*"🛵 Tu pedido se está preparando en cocina..."* o *"🚚 ¡El repartidor va en camino a tu dirección!"*).
-
-### 4. Pantalla Mis Pedidos (`MisPedidosScreen.kt`)
-- **Control por Pestañas**: Pestañas con contadores `"En Curso (N)"` e `"Historial (N)"`.
-- **Refresco de Estado**: Botón de recarga para refrescar los estados dinámicos desde el servidor de Render.
-
----
+### 3. Sincronización en el Carrito (`CartScreen.kt` & `CustomerMainContent.kt`)
+- Las direcciones reales obtenidas del backend se cargan en la pantalla de perfil y se sincronizan con las opciones de envío disponibles en el carrito de compras.
 
 ## Resultados de Verificación
 
 ### Pruebas de Compilación
-- Ejecutado `gradle_build` (`assembleDebug`):
+- Ejecutado `gradle_build` con tarea `assembleDebug`:
   > [!NOTE]
-  > **Build finished successfully.** El proyecto compila limpiamente en Kotlin Multiplatform.
+  > **Build finished successfully.** El proyecto compila sin ningún error.
