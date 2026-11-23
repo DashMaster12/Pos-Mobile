@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +26,8 @@ fun AuthContainerContent(
     viewModel: pe.edu.upeu.presentation.viewmodel.AppViewModel
 ) {
     var authMode by remember { mutableStateOf(AuthMode.SELECTOR) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var loginError by remember { mutableStateOf<String?>(null) }
+    var registrationError by remember { mutableStateOf<String?>(null) }
     val isLoading by viewModel.isLoading.collectAsState()
 
     Surface(
@@ -87,7 +89,7 @@ fun AuthContainerContent(
                                         correo = googleEmail,
                                         password = "google_auth_default",
                                         onSuccess = { regCliente -> onRegisterSuccess(regCliente) },
-                                        onError = { err -> errorMessage = err }
+                                        onError = { err -> registrationError = err }
                                     )
                                 }
                             )
@@ -123,12 +125,11 @@ fun AuthContainerContent(
                                 identifier = identifier,
                                 password = password,
                                 onSuccess = { cliente -> onLoginSuccess(cliente) },
-                                onError = { err -> errorMessage = err }
+                                onError = { err -> loginError = err }
                             )
                         },
                         onGoToRegister = { authMode = AuthMode.REGISTER },
-                        isLoading = isLoading,
-                        errorMessage = errorMessage
+                        isLoading = isLoading
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -148,12 +149,11 @@ fun AuthContainerContent(
                                 correo = correo,
                                 password = pwd,
                                 onSuccess = { cliente -> onRegisterSuccess(cliente) },
-                                onError = { err -> errorMessage = err }
+                                onError = { err -> registrationError = err }
                             )
                         },
                         onGoToLogin = { authMode = AuthMode.LOGIN },
-                        isLoading = isLoading,
-                        errorMessage = errorMessage
+                        isLoading = isLoading
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -163,5 +163,39 @@ fun AuthContainerContent(
                 }
             }
         }
+    }
+
+    if (loginError != null) {
+        AlertDialog(
+            onDismissRequest = { loginError = null },
+            icon = {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = { Text("No se pudo iniciar sesión", fontWeight = FontWeight.Bold) },
+            text = { Text(loginError ?: "") },
+            confirmButton = {
+                Button(onClick = { loginError = null }, shape = RoundedCornerShape(8.dp)) {
+                    Text("Entendido")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (registrationError != null) {
+        AlertDialog(
+            onDismissRequest = { registrationError = null },
+            icon = {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = { Text("No se pudo crear la cuenta", fontWeight = FontWeight.Bold) },
+            text = { Text(registrationError ?: "") },
+            confirmButton = {
+                Button(onClick = { registrationError = null }, shape = RoundedCornerShape(8.dp)) {
+                    Text("Entendido")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
     }
 }

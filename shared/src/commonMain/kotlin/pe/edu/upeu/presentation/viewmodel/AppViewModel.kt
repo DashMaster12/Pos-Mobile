@@ -3,11 +3,16 @@ package pe.edu.upeu.presentation.viewmodel
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import pe.edu.upeu.data.model.CardPayRequest
 import pe.edu.upeu.data.model.ClienteLoginRequest
+import pe.edu.upeu.data.model.YapePayRequest
 import pe.edu.upeu.data.model.ClienteRequest
 import pe.edu.upeu.data.model.ClienteResponse
 import pe.edu.upeu.data.model.CreateOrderRequest
@@ -18,6 +23,8 @@ import pe.edu.upeu.data.model.ProductRef
 import pe.edu.upeu.data.network.ApiService
 import pe.edu.upeu.presentation.CartItem
 import pe.edu.upeu.presentation.screens.OrderModel
+import pe.edu.upeu.orderItemsPhrase
+import pe.edu.upeu.showOrderNotification
 
 class AppViewModel : ViewModel() {
     private val apiService = ApiService()
@@ -32,6 +39,10 @@ class AppViewModel : ViewModel() {
     val historyOrders: StateFlow<List<OrderModel>> = _historyOrders.asStateFlow()
 
     val cartItems = mutableStateListOf<CartItem>()
+
+    private var watchJob: Job? = null
+    private val knownStatus = mutableMapOf<Long, String>()
+    private var ordersPrimed = false
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -64,21 +75,82 @@ class AppViewModel : ViewModel() {
 
     fun fetchOrdersForCliente(clienteId: Long) {
         viewModelScope.launch {
-            try {
-                val remoteOrders = apiService.getOrdersByCliente(clienteId)
-                val mapped = remoteOrders.map { dtoToModel(it) }
+            syncOrders(clienteId)
+        }
+    }
 
-                // Segregar entre pedidos activos e historial
-                _activeOrders.value = mapped.filter { 
-                    it.rawStatus == "EN_PREPARACION" || it.rawStatus == "EN_CAMINO" || it.status.contains("preparación", ignoreCase = true) || it.status.contains("camino", ignoreCase = true)
-                }
-
-                _historyOrders.value = mapped.filter { 
-                    it.rawStatus == "ENTREGADO" || it.rawStatus == "CANCELADO" || it.status.contains("entregado", ignoreCase = true) || it.status.contains("cancelado", ignoreCase = true)
-                }
-            } catch (e: Exception) {
-                // Muestra lista local si falla
+    fun watchOrders(clienteId: Long) {
+        watchJob?.cancel()
+        watchJob = viewModelScope.launch {
+            while (isActive) {
+                syncOrders(clienteId)
+                delay(15_000)
             }
+        }
+    }
+
+    fun stopWatchingOrders() {
+        watchJob?.cancel()
+        watchJob = null
+        knownStatus.clear()
+        ordersPrimed = false
+    }
+
+    private suspend fun syncOrders(clienteId: Long) {
+        try {
+            val remoteOrders = apiService.getOrdersByCliente(clienteId)
+            if (ordersPrimed) {
+                remoteOrders.forEach { dto ->
+                    val id = dto.id ?: return@forEach
+                    val status = dto.status ?: "EN_PREPARACION"
+                    val previous = knownStatus[id]
+                    if (previous != null && previous != status) {
+                        val phrase = orderItemsPhrase(
+                            dto.details.orEmpty().map { detail ->
+                                val name = detail.product?.name?.trim().orEmpty().ifBlank { "Producto" }
+                                name to (detail.quantity ?: 1)
+                            }
+                        )
+                        showOrderNotification(statusTitle(status), statusMessage(status, phrase))
+                    }
+                    knownStatus[id] = status
+                }
+            } else {
+                remoteOrders.forEach { dto ->
+                    val id = dto.id ?: return@forEach
+                    knownStatus[id] = dto.status ?: "EN_PREPARACION"
+                }
+                ordersPrimed = true
+            }
+
+            val mapped = remoteOrders.map { dtoToModel(it) }
+            _activeOrders.value = mapped.filter {
+                it.rawStatus == "EN_PREPARACION" || it.rawStatus == "EN_CAMINO" || it.status.contains("preparación", ignoreCase = true) || it.status.contains("camino", ignoreCase = true)
+            }
+            _historyOrders.value = mapped.filter {
+                it.rawStatus == "ENTREGADO" || it.rawStatus == "CANCELADO" || it.status.contains("entregado", ignoreCase = true) || it.status.contains("cancelado", ignoreCase = true)
+            }
+        } catch (e: Exception) {
+            // Conserva la lista local si el servidor no responde
+        }
+    }
+
+    private fun statusTitle(status: String): String {
+        return when (status) {
+            "EN_CAMINO" -> "Pedido en camino"
+            "ENTREGADO" -> "Pedido entregado"
+            "CANCELADO" -> "Pedido cancelado"
+            else -> "Pedido en preparación"
+        }
+    }
+
+    private fun statusMessage(status: String, itemsPhrase: String): String {
+        val pedido = if (itemsPhrase.isBlank()) "Tu pedido" else "Tu pedido de $itemsPhrase"
+        return when (status) {
+            "EN_CAMINO" -> "$pedido va en camino."
+            "ENTREGADO" -> "$pedido fue entregado."
+            "CANCELADO" -> "$pedido fue cancelado."
+            else -> "$pedido está en preparación."
         }
     }
 
@@ -142,7 +214,7 @@ class AppViewModel : ViewModel() {
                 val response = apiService.registerCliente(request)
                 onSuccess(response)
             } catch (e: Exception) {
-                onError("Error al registrar cliente: ${e.message}")
+                onError("No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.")
             } finally {
                 _isLoading.value = false
             }
@@ -205,6 +277,80 @@ class AppViewModel : ViewModel() {
         }
     }
 
+    fun payWithYape(
+        phone: String,
+        otp: String,
+        amount: Double,
+        email: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = apiService.payWithYape(
+                    YapePayRequest(
+                        phoneNumber = phone,
+                        otp = otp,
+                        amount = amount,
+                        email = email,
+                        description = "Pedido Ale Burgers"
+                    )
+                )
+                if (response.approved) {
+                    onSuccess()
+                } else {
+                    _isLoading.value = false
+                    onError(response.message ?: "Yape rechazó el pago.")
+                }
+            } catch (e: Exception) {
+                _isLoading.value = false
+                onError(e.message ?: "No se pudo cobrar con Yape.")
+            }
+        }
+    }
+
+    fun payWithCard(
+        cardNumber: String,
+        cardholder: String,
+        expirationMonth: Int,
+        expirationYear: Int,
+        securityCode: String,
+        documentNumber: String,
+        amount: Double,
+        email: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = apiService.payWithCard(
+                    CardPayRequest(
+                        cardNumber = cardNumber,
+                        cardholder = cardholder,
+                        expirationMonth = expirationMonth,
+                        expirationYear = expirationYear,
+                        securityCode = securityCode,
+                        documentNumber = documentNumber,
+                        amount = amount,
+                        email = email,
+                        description = "Pedido Ale Burgers"
+                    )
+                )
+                if (response.approved) {
+                    onSuccess()
+                } else {
+                    _isLoading.value = false
+                    onError(response.message ?: "La tarjeta fue rechazada.")
+                }
+            } catch (e: Exception) {
+                _isLoading.value = false
+                onError(e.message ?: "No se pudo cobrar con tarjeta.")
+            }
+        }
+    }
+
     fun confirmOrder(
         cliente: ClienteResponse?,
         address: String,
@@ -238,8 +384,8 @@ class AppViewModel : ViewModel() {
 
             try {
                 val response = apiService.createOrder(request)
-                val code = response.orderNumber?.let { "#$it" } ?: "#${response.id ?: 0}"
-                
+                val orderNo = response.orderNumber ?: response.id ?: 0
+                val code = "#$orderNo"
                 val itemsSummaryList = cartItems.map { 
                     val notes = if (it.customizationNotes.isNotBlank()) " (${it.customizationNotes})" else ""
                     "${it.quantity}x ${it.product.name}$notes ($${it.unitPrice})"

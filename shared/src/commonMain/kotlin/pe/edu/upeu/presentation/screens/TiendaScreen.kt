@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil3.compose.AsyncImage
 import pe.edu.upeu.data.model.ProductDto
 import pe.edu.upeu.presentation.components.DeliveryButton
@@ -41,12 +43,14 @@ fun TiendaScreen(
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onCustomizeProduct: (ProductDto) -> Unit = {},
+    onAddToCart: (ProductDto) -> Unit = {},
     onLoginRequired: () -> Unit = {},
     onGoToActiveOrders: () -> Unit = {},
     onRetry: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Todos") }
+    var viewingProduct by remember { mutableStateOf<ProductDto?>(null) }
 
     // Categorías reales de la base de datos (Hamburguesas, Bebidas, Pollo a la Brasa)
     val categories = listOf(
@@ -368,13 +372,16 @@ fun TiendaScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
+                                val customizable = allowsCustomization(product.category?.name)
                                 DeliveryButton(
-                                    text = "Personalizar",
+                                    text = if (customizable) "Personalizar" else "Ver",
                                     onClick = {
-                                        if (isLoggedIn) {
+                                        if (!isLoggedIn) {
+                                            onLoginRequired()
+                                        } else if (customizable) {
                                             onCustomizeProduct(product)
                                         } else {
-                                            onLoginRequired()
+                                            viewingProduct = product
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth().height(38.dp)
@@ -385,6 +392,17 @@ fun TiendaScreen(
                 }
             }
         }
+    }
+
+    viewingProduct?.let { product ->
+        ProductViewDialog(
+            product = product,
+            onDismiss = { viewingProduct = null },
+            onAddToCart = {
+                onAddToCart(product)
+                viewingProduct = null
+            }
+        )
     }
 }
 
@@ -414,6 +432,88 @@ fun CategoryChipCard(
                 fontWeight = FontWeight.Bold,
                 color = contentColor
             )
+        }
+    }
+}
+
+private fun allowsCustomization(categoryName: String?): Boolean {
+    val name = categoryName?.lowercase().orEmpty()
+    return name.contains("hamburg") || name.contains("pollo")
+}
+
+@Composable
+private fun ProductViewDialog(
+    product: ProductDto,
+    onDismiss: () -> Unit,
+    onAddToCart: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                    }
+                }
+                val imgUrl = product.fullImageUrl
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!imgUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = imgUrl,
+                            contentDescription = product.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = null,
+                            modifier = Modifier.size(50.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = product.name,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = product.description,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = product.priceStr,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(16.dp))
+                DeliveryButton(
+                    text = "Añadir al carrito",
+                    onClick = onAddToCart,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

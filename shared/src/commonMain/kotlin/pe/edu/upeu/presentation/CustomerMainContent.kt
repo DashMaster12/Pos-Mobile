@@ -15,12 +15,16 @@ import pe.edu.upeu.data.model.DireccionDto
 import pe.edu.upeu.data.model.ProductDto
 import pe.edu.upeu.data.network.ApiService
 import pe.edu.upeu.presentation.screens.CartScreen
+import pe.edu.upeu.presentation.screens.CheckoutScreen
 import pe.edu.upeu.presentation.screens.ConfiguracionScreen
 import pe.edu.upeu.presentation.screens.MisPedidosScreen
 import pe.edu.upeu.presentation.screens.ProductCustomizationScreen
 import pe.edu.upeu.presentation.screens.TiendaScreen
+import pe.edu.upeu.presentation.screens.OrderModel
 import pe.edu.upeu.presentation.screens.UsuarioScreen
 import pe.edu.upeu.presentation.viewmodel.AppViewModel
+import pe.edu.upeu.orderItemsPhrase
+import pe.edu.upeu.showOrderNotification
 
 class CartItem(
     val product: ProductDto,
@@ -44,6 +48,7 @@ fun CustomerMainContent(
     val scope = rememberCoroutineScope()
 
     val products by viewModel.products.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val activeOrders by viewModel.activeOrders.collectAsState()
     val historyOrders by viewModel.historyOrders.collectAsState()
 
@@ -53,9 +58,12 @@ fun CustomerMainContent(
     val cartItems = viewModel.cartItems
 
     var showCartScreen by remember { mutableStateOf(false) }
+    var showCheckoutScreen by remember { mutableStateOf(false) }
+    var checkoutError by remember { mutableStateOf<String?>(null) }
     var customizingProduct by remember { mutableStateOf<ProductDto?>(null) }
     var orderError by remember { mutableStateOf<String?>(null) }
     var showOrderErrorDialog by remember { mutableStateOf(false) }
+    var paidOrder by remember { mutableStateOf<OrderModel?>(null) }
 
     val addresses = remember { mutableStateListOf<String>() }
     val direccionesState = remember { mutableStateListOf<DireccionDto>() }
@@ -77,13 +85,38 @@ fun CustomerMainContent(
                 addresses.clear()
                 list.forEach { d ->
                     addresses.add(d.direccion)
-                    if (d.esPrincipal == true) {
-                        selectedAddress = d.direccion
-                    }
+                }
+                if (selectedAddress.isNotBlank() && addresses.none { it == selectedAddress }) {
+                    addresses.add(selectedAddress)
                 }
 
                 if (selectedAddress.isBlank() && addresses.isNotEmpty()) {
-                    selectedAddress = addresses[0]
+                    selectedAddress = list.firstOrNull { it.esPrincipal == true }?.direccion ?: addresses[0]
+                }
+            }
+        }
+    }
+
+    fun saveDeliveryAddress(raw: String) {
+        val clean = raw.trim()
+        if (clean.isBlank()) return
+        val existing = addresses.firstOrNull { it.equals(clean, ignoreCase = true) }
+        if (existing != null) {
+            selectedAddress = existing
+            return
+        }
+        addresses.add(clean)
+        selectedAddress = clean
+        scope.launch {
+            cliente.id?.let { cId ->
+                try {
+                    apiService.agregarDireccion(
+                        cId,
+                        DireccionDto(direccion = clean, esPrincipal = addresses.size == 1)
+                    )
+                    loadDirecciones()
+                } catch (e: Exception) {
+                    orderError = null
                 }
             }
         }
@@ -93,8 +126,11 @@ fun CustomerMainContent(
     LaunchedEffect(cliente.id) {
         loadDirecciones()
         cliente.id?.let { cId ->
-            viewModel.fetchOrdersForCliente(cId)
+            viewModel.watchOrders(cId)
         }
+    }
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopWatchingOrders() }
     }
 
     val totalCartCount = cartItems.size
@@ -116,6 +152,70 @@ fun CustomerMainContent(
                 customizingProduct = null
             }
         )
+    } else if (showCheckoutScreen) {
+        CheckoutScreen(
+            cartItems = cartItems,
+            addresses = addresses,
+            selectedAddress = selectedAddress,
+            onSelectAddress = { selectedAddress = it },
+            onAddAddress = { newAddr ->
+                saveDeliveryAddress(newAddr)
+            },
+            isLoading = isLoading,
+            errorMessage = checkoutError,
+            onBack = {
+                checkoutError = null
+                showCheckoutScreen = false
+            },
+            onPayYape = { phone, otp, amount ->
+                checkoutError = null
+                val email = cliente.correo?.takeIf { it.isNotBlank() } ?: "test_payer@example.com"
+                val shippingAddr = selectedAddress.ifBlank { addresses.firstOrNull() ?: "Dirección principal" }
+                viewModel.payWithYape(
+                    phone = phone,
+                    otp = otp,
+                    amount = amount,
+                    email = email,
+                    onSuccess = {
+                        viewModel.confirmOrder(
+                            cliente = cliente,
+                            address = shippingAddr,
+                            onSuccess = { order -> paidOrder = order },
+                            onError = { err ->
+                                checkoutError = "El pago se aprobó, pero no se pudo guardar el pedido. $err"
+                            }
+                        )
+                    },
+                    onError = { err -> checkoutError = err }
+                )
+            },
+            onPayCard = { number, holder, month, year, cvv, document, amount ->
+                checkoutError = null
+                val email = cliente.correo?.takeIf { it.isNotBlank() } ?: "test_payer@example.com"
+                val shippingAddr = selectedAddress.ifBlank { addresses.firstOrNull() ?: "Dirección principal" }
+                viewModel.payWithCard(
+                    cardNumber = number,
+                    cardholder = holder,
+                    expirationMonth = month,
+                    expirationYear = year,
+                    securityCode = cvv,
+                    documentNumber = document,
+                    amount = amount,
+                    email = email,
+                    onSuccess = {
+                        viewModel.confirmOrder(
+                            cliente = cliente,
+                            address = shippingAddr,
+                            onSuccess = { order -> paidOrder = order },
+                            onError = { err ->
+                                checkoutError = "El pago se aprobó, pero no se pudo guardar el pedido. $err"
+                            }
+                        )
+                    },
+                    onError = { err -> checkoutError = err }
+                )
+            }
+        )
     } else if (showCartScreen) {
         CartScreen(
             isLoggedIn = true,
@@ -132,35 +232,25 @@ fun CustomerMainContent(
                 selectedAddress = addr
             },
             onAddNewAddress = { newAddr ->
-                scope.launch {
-                    cliente.id?.let { cId ->
-                        try {
-                            apiService.agregarDireccion(cId, DireccionDto(direccion = newAddr, esPrincipal = addresses.isEmpty()))
-                            loadDirecciones()
-                        } catch (e: Exception) {
-                            orderError = "Error al agregar dirección: ${e.message}"
-                            showOrderErrorDialog = true
-                        }
-                    }
-                }
+                saveDeliveryAddress(newAddr)
             },
             onBackClick = {
                 showCartScreen = false
             },
-            onConfirmOrder = {
-                val shippingAddr = if (selectedAddress.isNotBlank()) selectedAddress else (addresses.firstOrNull() ?: "Dirección principal")
-                viewModel.confirmOrder(
-                    cliente = cliente,
-                    address = shippingAddr,
-                    onSuccess = { _ ->
-                        showCartScreen = false
-                        currentRoute = DeliveryRoute.MisPedidos
-                    },
-                    onError = { err ->
-                        orderError = err
-                        showOrderErrorDialog = true
-                    }
-                )
+            onConfirmOrder = { pending ->
+                val typed = pending.trim()
+                if (typed.isNotBlank()) {
+                    saveDeliveryAddress(typed)
+                } else if (selectedAddress.isBlank() && addresses.isNotEmpty()) {
+                    selectedAddress = addresses.first()
+                }
+                if (selectedAddress.isBlank()) {
+                    orderError = "Agrega la dirección de entrega en el carrito."
+                    showOrderErrorDialog = true
+                } else {
+                    checkoutError = null
+                    showCheckoutScreen = true
+                }
             },
             onGoToLogin = {}
         )
@@ -252,6 +342,9 @@ fun CustomerMainContent(
                         onCustomizeProduct = { product ->
                             customizingProduct = product
                         },
+                        onAddToCart = { product ->
+                            cartItems.add(CartItem(product, product.price, "", 1))
+                        },
                         onLoginRequired = {},
                         onGoToActiveOrders = {
                             currentRoute = DeliveryRoute.MisPedidos
@@ -315,11 +408,40 @@ fun CustomerMainContent(
                                 }
                             }
                         },
-                        onLogout = onLogout
+                        onLogout = {
+                            viewModel.stopWatchingOrders()
+                            onLogout()
+                        }
                     )
                 }
             }
         }
+    }
+
+    paidOrder?.let { order ->
+        val paidText = paymentMessage(order.details)
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Pago realizado", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(paidText)
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showOrderNotification("Pago realizado", paidText)
+                        paidOrder = null
+                        showCheckoutScreen = false
+                        showCartScreen = false
+                        currentRoute = DeliveryRoute.MisPedidos
+                    },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Entendido")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
     }
 
     // Diálogo de error al crear el pedido o gestionar direcciones
@@ -338,4 +460,10 @@ fun CustomerMainContent(
             }
         )
     }
+}
+
+private fun paymentMessage(details: String): String {
+    val phrase = orderItemsPhrase(details)
+    if (phrase.isBlank()) return "Tu pago ya se realizó."
+    return "Pagaste tu pedido de $phrase."
 }

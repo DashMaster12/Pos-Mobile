@@ -10,17 +10,20 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import pe.edu.upeu.data.model.CardPayRequest
 import pe.edu.upeu.data.model.ClienteLoginRequest
 import pe.edu.upeu.data.model.ClienteRequest
 import pe.edu.upeu.data.model.ClienteResponse
 import pe.edu.upeu.data.model.CreateOrderRequest
+import pe.edu.upeu.data.model.YapePayRequest
+import pe.edu.upeu.data.model.YapePayResponse
 import pe.edu.upeu.data.model.DireccionDto
 import pe.edu.upeu.data.model.OrderResponse
 import pe.edu.upeu.data.model.ProductDto
 
 class ApiService {
-    // API Gateway base URL en Render
-    private val baseUrl = "https://ale-burgers-system.onrender.com"
+    // Gateway local de Docker. 10.0.2.2 es el host visto desde el emulador Android.
+    private val baseUrl = "http://10.0.2.2:4040"
 
     val client = HttpClient {
         install(ContentNegotiation) {
@@ -104,6 +107,30 @@ class ApiService {
         }
     }
 
+    suspend fun payWithYape(request: YapePayRequest): YapePayResponse {
+        val response = client.post("$baseUrl/pos-venta-service/order/yape") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        }
+        val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+        throw Exception("Servidor (${response.status.value}): $errorText")
+    }
+
+    suspend fun payWithCard(request: CardPayRequest): YapePayResponse {
+        val response = client.post("$baseUrl/pos-venta-service/order/card") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        }
+        val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+        throw Exception("Servidor (${response.status.value}): $errorText")
+    }
+
     suspend fun createOrder(request: CreateOrderRequest): OrderResponse {
         val response = client.post("$baseUrl/pos-venta-service/order") {
             contentType(ContentType.Application.Json)
@@ -118,16 +145,12 @@ class ApiService {
     }
 
     suspend fun getOrdersByCliente(clienteId: Long): List<OrderResponse> {
-        return try {
-            val response = client.get("$baseUrl/pos-venta-service/order/cliente/$clienteId")
-            if (response.status.isSuccess()) {
-                response.body()
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            emptyList()
+        val response = client.get("$baseUrl/pos-venta-service/order/cliente/$clienteId")
+        if (response.status.isSuccess()) {
+            return response.body()
         }
+        val errorText = try { response.bodyAsText() } catch (e: Exception) { "Error ${response.status.value}" }
+        throw Exception("Servidor (${response.status.value}): $errorText")
     }
 
     // --- MÉTODOS PARA GESTIÓN DE DIRECCIONES ---
