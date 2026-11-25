@@ -1,7 +1,6 @@
 package pe.edu.upeu.presentation
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,7 +44,8 @@ fun RegisterSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = "Registro de Cliente",
@@ -54,111 +54,96 @@ fun RegisterSheetContent(
             color = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 380.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        OutlinedTextField(
+            value = nombreCompleto,
+            onValueChange = { nombreCompleto = it },
+            label = { Text("Nombre Completo o Razón Social") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = tipoDocumentoExpanded,
+            onExpandedChange = { tipoDocumentoExpanded = it },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            item {
-                OutlinedTextField(
-                    value = nombreCompleto,
-                    onValueChange = { nombreCompleto = it },
-                    label = { Text("Nombre Completo o Razón Social") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-            item {
-                ExposedDropdownMenuBox(
-                    expanded = tipoDocumentoExpanded,
-                    onExpandedChange = { tipoDocumentoExpanded = it },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = tipoDocumento,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Tipo de Documento") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = tipoDocumentoExpanded)
+            OutlinedTextField(
+                value = tipoDocumento,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Tipo de Documento") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = tipoDocumentoExpanded)
+                },
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                modifier = Modifier
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
+                singleLine = true
+            )
+            ExposedDropdownMenu(
+                expanded = tipoDocumentoExpanded,
+                onDismissRequest = { tipoDocumentoExpanded = false }
+            ) {
+                tiposDocumento.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            tipoDocumento = option
+                            numeroDocumento = numeroDocumento.take(digitosRequeridos(option))
+                            tipoDocumentoExpanded = false
                         },
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth(),
-                        singleLine = true
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                     )
-                    ExposedDropdownMenu(
-                        expanded = tipoDocumentoExpanded,
-                        onDismissRequest = { tipoDocumentoExpanded = false }
-                    ) {
-                        tiposDocumento.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option) },
-                                onClick = {
-                                    tipoDocumento = option
-                                    numeroDocumento = numeroDocumento.take(digitosRequeridos(option))
-                                    tipoDocumentoExpanded = false
-                                },
-                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                            )
-                        }
-                    }
                 }
-            }
-            item {
-                OutlinedTextField(
-                    value = numeroDocumento,
-                    onValueChange = { input ->
-                        numeroDocumento = input.filter { it.isDigit() }.take(digitosDocumento)
-                    },
-                    label = { Text("Número de Documento") },
-                    supportingText = { Text(mensajeDocumento) },
-                    isError = numeroDocumento.isNotEmpty() && !documentoValido,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = direccion,
-                    onValueChange = { direccion = it },
-                    label = { Text("Dirección") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = correo,
-                    onValueChange = { correo = it },
-                    label = { Text("Correo Electrónico (@)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Contraseña") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
             }
         }
 
+        OutlinedTextField(
+            value = numeroDocumento,
+            onValueChange = { input ->
+                numeroDocumento = input.filter { it.isDigit() }.take(digitosDocumento)
+            },
+            label = { Text("Número de Documento") },
+            supportingText = { Text(mensajeDocumento) },
+            isError = numeroDocumento.isNotEmpty() && !documentoValido,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        OutlinedTextField(
+            value = direccion,
+            onValueChange = { direccion = it },
+            label = { Text("Dirección") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        OutlinedTextField(
+            value = correo,
+            onValueChange = { correo = it },
+            label = { Text("Correo Electrónico (@)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Contraseña") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
         if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(8.dp))
             Text(text = errorMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Button(
             onClick = {
@@ -175,8 +160,6 @@ fun RegisterSheetContent(
                 Text("Registrar Cliente")
             }
         }
-
-        Spacer(modifier = Modifier.height(4.dp))
 
         TextButton(onClick = onGoToLogin) {
             Text("¿Ya tienes cuenta? Inicia sesión aquí")

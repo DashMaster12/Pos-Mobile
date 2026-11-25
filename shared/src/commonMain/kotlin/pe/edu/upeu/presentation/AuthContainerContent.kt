@@ -1,7 +1,9 @@
 package pe.edu.upeu.presentation
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -13,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import pe.edu.upeu.data.model.ClienteResponse
 import pe.edu.upeu.presentation.components.DeliveryButton
 
@@ -37,9 +38,21 @@ fun AuthContainerContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
+                .then(
+                    if (authMode == AuthMode.SELECTOR) {
+                        Modifier
+                    } else {
+                        Modifier.verticalScroll(rememberScrollState())
+                    }
+                )
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = if (authMode == AuthMode.SELECTOR) {
+                Arrangement.Center
+            } else {
+                Arrangement.Top
+            }
         ) {
             Icon(
                 imageVector = Icons.Default.ShoppingCart,
