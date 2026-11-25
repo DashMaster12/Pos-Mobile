@@ -51,7 +51,7 @@ fun CheckoutScreen(
     addresses: List<String>,
     selectedAddress: String,
     onSelectAddress: (String) -> Unit,
-    onAddAddress: (String) -> Unit,
+    onAddAddress: (direccion: String, referencia: String) -> Unit,
     isLoading: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
@@ -141,7 +141,7 @@ fun CheckoutScreen(
                                 onSelectAddress(address)
                             }
                             if (addresses.none { it == address }) {
-                                onAddAddress(address)
+                                onAddAddress(address, "")
                             }
                             if (payWithCard) {
                                 val year = expirationYear.toInt()

@@ -28,14 +28,16 @@ fun CartScreen(
     onUpdateQuantity: (CartItem, Int) -> Unit,
     onRemoveItem: (CartItem) -> Unit,
     addresses: MutableList<String>,
+    addressReferencias: Map<String, String> = emptyMap(),
     selectedAddress: String,
     onSelectAddress: (String) -> Unit,
-    onAddNewAddress: (String) -> Unit,
+    onAddNewAddress: (direccion: String, referencia: String) -> Unit,
     onBackClick: () -> Unit,
     onConfirmOrder: (pendingAddress: String) -> Unit,
     onGoToLogin: () -> Unit
 ) {
     var newAddressInput by remember { mutableStateOf("") }
+    var newReferenciaInput by remember { mutableStateOf("") }
     var customerDocument by remember { mutableStateOf("") }
     val totalPrice = cartItems.sumOf { it.unitPrice * it.quantity }
 
@@ -264,6 +266,7 @@ fun CartScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             addresses.forEach { addr ->
+                                val ref = addressReferencias[addr]
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
@@ -273,37 +276,52 @@ fun CartScreen(
                                         onClick = { onSelectAddress(addr) }
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = addr, fontSize = 14.sp)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = addr, fontSize = 14.sp)
+                                        if (!ref.isNullOrBlank()) {
+                                            Text(
+                                                text = "Ref: $ref",
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
-                            Row(
+                            OutlinedTextField(
+                                value = newAddressInput,
+                                onValueChange = { newAddressInput = it },
+                                placeholder = { Text("Añadir nueva dirección...") },
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = newReferenciaInput,
+                                onValueChange = { newReferenciaInput = it },
+                                placeholder = { Text("Referencia (opcional)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    if (newAddressInput.isNotBlank()) {
+                                        onAddNewAddress(newAddressInput.trim(), newReferenciaInput.trim())
+                                        newAddressInput = ""
+                                        newReferenciaInput = ""
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                                shape = RoundedCornerShape(8.dp)
                             ) {
-                                OutlinedTextField(
-                                    value = newAddressInput,
-                                    onValueChange = { newAddressInput = it },
-                                    placeholder = { Text("Añadir nueva dirección...") },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(52.dp),
-                                    singleLine = true
-                                )
+                                Icon(Icons.Default.Add, contentDescription = "Agregar")
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Button(
-                                    onClick = {
-                                        if (newAddressInput.isNotBlank()) {
-                                            onAddNewAddress(newAddressInput)
-                                            newAddressInput = ""
-                                        }
-                                    },
-                                    modifier = Modifier.height(52.dp),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = "Agregar")
-                                }
+                                Text("Agregar dirección")
                             }
                         }
                     }

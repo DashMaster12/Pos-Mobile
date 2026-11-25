@@ -97,9 +97,10 @@ fun CustomerMainContent(
         }
     }
 
-    fun saveDeliveryAddress(raw: String) {
+    fun saveDeliveryAddress(raw: String, referencia: String = "") {
         val clean = raw.trim()
         if (clean.isBlank()) return
+        val refClean = referencia.trim().ifBlank { null }
         val existing = addresses.firstOrNull { it.equals(clean, ignoreCase = true) }
         if (existing != null) {
             selectedAddress = existing
@@ -112,7 +113,11 @@ fun CustomerMainContent(
                 try {
                     apiService.agregarDireccion(
                         cId,
-                        DireccionDto(direccion = clean, esPrincipal = addresses.size == 1)
+                        DireccionDto(
+                            direccion = clean,
+                            referencia = refClean,
+                            esPrincipal = addresses.size == 1
+                        )
                     )
                     loadDirecciones()
                 } catch (e: Exception) {
@@ -158,8 +163,8 @@ fun CustomerMainContent(
             addresses = addresses,
             selectedAddress = selectedAddress,
             onSelectAddress = { selectedAddress = it },
-            onAddAddress = { newAddr ->
-                saveDeliveryAddress(newAddr)
+            onAddAddress = { newAddr, ref ->
+                saveDeliveryAddress(newAddr, ref)
             },
             isLoading = isLoading,
             errorMessage = checkoutError,
@@ -227,12 +232,18 @@ fun CustomerMainContent(
                 cartItems.remove(item)
             },
             addresses = addresses,
+            addressReferencias = direccionesState
+                .mapNotNull { d ->
+                    val ref = d.referencia?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                    d.direccion to ref
+                }
+                .toMap(),
             selectedAddress = selectedAddress,
             onSelectAddress = { addr ->
                 selectedAddress = addr
             },
-            onAddNewAddress = { newAddr ->
-                saveDeliveryAddress(newAddr)
+            onAddNewAddress = { newAddr, ref ->
+                saveDeliveryAddress(newAddr, ref)
             },
             onBackClick = {
                 showCartScreen = false
@@ -373,7 +384,14 @@ fun CustomerMainContent(
                             scope.launch {
                                 cliente.id?.let { cId ->
                                     try {
-                                        apiService.agregarDireccion(cId, DireccionDto(direccion = dir, referencia = ref, esPrincipal = principal))
+                                        apiService.agregarDireccion(
+                                            cId,
+                                            DireccionDto(
+                                                direccion = dir,
+                                                referencia = ref.ifBlank { null },
+                                                esPrincipal = principal
+                                            )
+                                        )
                                         loadDirecciones()
                                     } catch (e: Exception) {
                                         orderError = "Error al agregar dirección: ${e.message}"
@@ -386,7 +404,16 @@ fun CustomerMainContent(
                             scope.launch {
                                 cliente.id?.let { cId ->
                                     try {
-                                        apiService.actualizarDireccion(cId, id, DireccionDto(id = id, direccion = dir, referencia = ref, esPrincipal = principal))
+                                        apiService.actualizarDireccion(
+                                            cId,
+                                            id,
+                                            DireccionDto(
+                                                id = id,
+                                                direccion = dir,
+                                                referencia = ref.ifBlank { null },
+                                                esPrincipal = principal
+                                            )
+                                        )
                                         loadDirecciones()
                                     } catch (e: Exception) {
                                         orderError = "Error al actualizar dirección: ${e.message}"

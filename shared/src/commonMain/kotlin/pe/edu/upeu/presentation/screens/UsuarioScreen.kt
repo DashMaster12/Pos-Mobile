@@ -253,14 +253,18 @@ fun UsuarioScreen(
                                 }
 
                                 Row {
-                                    IconButton(onClick = {
-                                        editingDireccionId = dir.id
-                                        inputDireccion = dir.direccion
-                                        inputReferencia = dir.referencia ?: ""
-                                        inputEsPrincipal = dir.esPrincipal ?: false
-                                        addressError = false
-                                        showAddressDialog = true
-                                    }) {
+                                    IconButton(
+                                        enabled = dir.id != null,
+                                        onClick = {
+                                            val id = dir.id ?: return@IconButton
+                                            editingDireccionId = id
+                                            inputDireccion = dir.direccion
+                                            inputReferencia = dir.referencia ?: ""
+                                            inputEsPrincipal = dir.esPrincipal ?: false
+                                            addressError = false
+                                            showAddressDialog = true
+                                        }
+                                    ) {
                                         Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                     }
                                     if (dir.esPrincipal != true && dir.id != null) {
@@ -410,10 +414,13 @@ fun UsuarioScreen(
                                 if (inputDireccion.isBlank()) {
                                     addressError = true
                                 } else {
-                                    if (editingDireccionId == null) {
-                                        onAddDireccion(inputDireccion.trim(), inputReferencia.trim(), inputEsPrincipal)
+                                    val direccion = inputDireccion.trim()
+                                    val referencia = inputReferencia.trim()
+                                    val editId = editingDireccionId
+                                    if (editId == null) {
+                                        onAddDireccion(direccion, referencia, inputEsPrincipal)
                                     } else {
-                                        onUpdateDireccion(editingDireccionId!!, inputDireccion.trim(), inputReferencia.trim(), inputEsPrincipal)
+                                        onUpdateDireccion(editId, direccion, referencia, inputEsPrincipal)
                                     }
                                     showAddressDialog = false
                                 }
