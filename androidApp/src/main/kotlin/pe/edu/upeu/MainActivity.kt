@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
+import pe.edu.upeu.data.session.SessionStoreHost
 
 class MainActivity : ComponentActivity() {
     private var permissionCallback: ((Boolean) -> Unit)? = null
@@ -25,6 +26,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        SessionStoreHost.bind(applicationContext)
 
         OrderNotifierHost.bind(this) { onResult ->
             if (Build.VERSION.SDK_INT < 33 ||

@@ -18,6 +18,7 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import pe.edu.upeu.data.model.ClienteResponse
+import pe.edu.upeu.data.session.SessionStore
 import pe.edu.upeu.presentation.Screen
 import pe.edu.upeu.presentation.SplashContent
 import pe.edu.upeu.presentation.AuthContainerContent
@@ -45,29 +46,39 @@ fun App() {
     var darkMode by remember { mutableStateOf(false) }
     val viewModel = remember { AppViewModel() }
 
-    // Estado global de sesión del cliente
-    var currentCliente by remember { mutableStateOf<ClienteResponse?>(null) }
+    // Estado global de sesión del cliente (restaurado desde almacenamiento local)
+    var currentCliente by remember { mutableStateOf(SessionStore.loadCliente()) }
     var loginSuccessName by remember { mutableStateOf<String?>(null) }
     var registerSuccessName by remember { mutableStateOf<String?>(null) }
+
+    fun persistSession(cliente: ClienteResponse) {
+        currentCliente = cliente
+        SessionStore.saveCliente(cliente)
+    }
+
+    fun clearSession() {
+        currentCliente = null
+        SessionStore.clear()
+    }
 
     AppTheme(darkTheme = darkMode) {
         var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (currentScreen) {
                 is Screen.Splash -> SplashContent(
-                    onTimeout = { 
-                        currentScreen = Screen.Main 
+                    onTimeout = {
+                        currentScreen = Screen.Main
                     }
                 )
                 is Screen.Welcome -> {
                     AuthContainerContent(
                         onLoginSuccess = { cliente ->
-                            currentCliente = cliente
+                            persistSession(cliente)
                             loginSuccessName = cliente.nombreCompleto ?: "Cliente"
                             currentScreen = Screen.Main
                         },
                         onRegisterSuccess = { cliente ->
-                            currentCliente = cliente
+                            persistSession(cliente)
                             registerSuccessName = cliente.nombreCompleto ?: "Cliente"
                             currentScreen = Screen.Main
                         },
@@ -78,11 +89,11 @@ fun App() {
                     if (currentCliente == null) {
                         AuthContainerContent(
                             onLoginSuccess = { cliente ->
-                                currentCliente = cliente
+                                persistSession(cliente)
                                 loginSuccessName = cliente.nombreCompleto ?: "Cliente"
                             },
                             onRegisterSuccess = { cliente ->
-                                currentCliente = cliente
+                                persistSession(cliente)
                                 registerSuccessName = cliente.nombreCompleto ?: "Cliente"
                             },
                             viewModel = viewModel
@@ -90,8 +101,8 @@ fun App() {
                     } else {
                         CustomerMainContent(
                             cliente = currentCliente!!,
-                            onLogout = { 
-                                currentCliente = null
+                            onLogout = {
+                                clearSession()
                             },
                             darkModeEnabled = darkMode,
                             onDarkModeChange = { darkMode = it }

@@ -127,6 +127,7 @@ fun ProductCustomizationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
